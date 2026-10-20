@@ -3,19 +3,16 @@
 from __future__ import annotations
 
 import hmac
-import json
 import logging
 from datetime import datetime, timezone
-from pathlib import Path
 
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 
+from . import db
 from .config import get_webhook_token
 
 logger = logging.getLogger("releasemanager.webhook")
-
-DATA_FILE = Path(__file__).resolve().parent.parent / "data" / "packages.jsonl"
 
 router = APIRouter()
 
@@ -40,38 +37,19 @@ def _check_token(authorization: str | None, x_webhook_token: str | None) -> None
 
 
 @router.post("/webhook/packages", status_code=202)
-async def receive_package(
+def receive_package(
     event: PackageEvent,
     authorization: str | None = Header(default=None),
     x_webhook_token: str | None = Header(default=None),
 ) -> dict:
     _check_token(authorization, x_webhook_token)
-    record = {
-        "receivedAt": datetime.now(timezone.utc).isoformat(),
+    received_at = datetime.now(timezone.utc).isoformat()
+    db.insert_package(received_at, event.package_name, event.source, event.version)
+    logger.info("Package received: %s %s from %s", event.package_name, event.version, event.source)
+    return {
+        "accepted": True,
+        "receivedAt": received_at,
         "packageName": event.package_name,
         "source": event.source,
         "version": event.version,
     }
-    DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with DATA_FILE.open("a", encoding="utf-8") as fh:
-        fh.write(json.dumps(record) + "\n")
-    logger.info("Package received: %s", record)
-    return {"accepted": True, **record}
-
-
-@router.get("/api/packages")
-async def list_packages() -> list[dict]:
-    """Returns all received package records, newest first."""
-    if not DATA_FILE.is_file():
-        return []
-    records: list[dict] = []
-    with DATA_FILE.open(encoding="utf-8") as fh:
-        for line in fh:
-            line = line.strip()
-            if line:
-                try:
-                    records.append(json.loads(line))
-                except json.JSONDecodeError:
-                    logger.warning("Skipping corrupt line in %s", DATA_FILE)
-    records.reverse()
-    return records

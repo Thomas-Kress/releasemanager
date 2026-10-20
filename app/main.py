@@ -1,27 +1,23 @@
-"""FastAPI backend exposing a login-status API for the b4A ReST API.
+"""FastAPI backend for the dashboard: b4A login status and received packages.
 
-The dashboard UI itself is a separate React + Material UI app (see
-``frontend/``). In development, run it with ``npm run dev`` in that folder;
-its Vite dev server proxies ``/api/*`` calls to this backend (see
-``frontend/vite.config.ts``). In production, run ``npm run build`` in
-``frontend/`` and this app will serve the built ``frontend/dist`` folder
-directly, so a single ``uvicorn app.main:app`` process serves both the API
-and the UI.
+The webhook receiver is a separate app (``app/webhook_app.py``, port 8080)
+that writes into SQLite; this API only reads from that database. The React
+frontend (``frontend/``, port 5173) proxies ``/api/*`` calls to this backend
+(see ``frontend/vite.config.ts``).
 """
 
 from __future__ import annotations
 
+import os
 from contextlib import asynccontextmanager
-from pathlib import Path
 
-from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
+from fastapi import FastAPI, HTTPException, Request
+
+from pydantic import BaseModel, Field
 
 from .b4a_auth import auth_manager
-from .webhook import router as webhook_router
-
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-FRONTEND_DIST = PROJECT_ROOT / "frontend" / "dist"
+from .b4a_client import B4AError, run_module
+from . import db
 
 
 @asynccontextmanager
@@ -32,7 +28,12 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Automic Release Manager", lifespan=lifespan)
-app.include_router(webhook_router)
+
+
+@app.get("/api/packages")
+def api_packages() -> list[dict]:
+    """Returns all package records received by the webhook, newest first."""
+    return db.list_packages()
 
 
 @app.get("/api/status")
@@ -47,7 +48,51 @@ async def api_refresh() -> dict:
     return {"triggered": True}
 
 
-# Serve the built React app (if present) for every other path. This must be
-# mounted last so the /api routes above take precedence.
-if FRONTEND_DIST.is_dir():
-    app.mount("/", StaticFiles(directory=str(FRONTEND_DIST), html=True), name="frontend")
+def _require_local(request: Request) -> None:
+    """Token-bearing endpoints are only for the machine running the dashboard
+    unless B4A_ALLOW_REMOTE_TOKEN=true; the webhook port may be internet-facing."""
+    host = request.client.host if request.client else ""
+    if host in ("127.0.0.1", "::1", "localhost"):
+        return
+    if os.environ.get("B4A_ALLOW_REMOTE_TOKEN", "").lower() in ("1", "true", "yes"):
+        return
+    raise HTTPException(status_code=403, detail="Token access is restricted to local clients.")
+
+
+class LoginRequest(BaseModel):
+    username: str = Field(min_length=1)
+    password: str = Field(min_length=1)
+
+
+@app.post("/api/login")
+async def api_login(req: LoginRequest, request: Request) -> dict:
+    """Logs in to Automic through b4A with the given credentials."""
+    _require_local(request)
+    return await auth_manager.login(req.username, req.password)
+
+
+@app.get("/api/token")
+async def api_token(request: Request) -> dict:
+    """Returns the current b4A bearer token for use by the dashboard."""
+    _require_local(request)
+    token = await auth_manager.get_token()
+    if not token:
+        raise HTTPException(status_code=401, detail="Not logged in to the b4A ReST API.")
+    state = await auth_manager.get_state()
+    return {"token": token, "expires_at": state["expires_at"], "username": state["username"]}
+
+
+class ModuleRequest(BaseModel):
+    name: str = Field(min_length=1, description="b4A module name, e.g. 'info.Search'")
+    options: dict = Field(default_factory=dict)
+
+
+@app.post("/api/b4a/module")
+async def api_b4a_module(req: ModuleRequest, request: Request) -> dict:
+    """Runs a b4A module with the backend's login token and returns job + report."""
+    _require_local(request)
+    try:
+        return await run_module(req.name, req.options)
+    except B4AError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+

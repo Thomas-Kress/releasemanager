@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useState,
+  type FormEvent,
   type MouseEvent,
   type ReactNode,
 } from 'react'
@@ -25,6 +26,7 @@ import {
   ListItemText,
   Popover,
   Stack,
+  TextField,
   Table,
   TableBody,
   TableCell,
@@ -44,6 +46,8 @@ import InfoIcon from '@mui/icons-material/Info'
 import PersonIcon from '@mui/icons-material/Person'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import Inventory2Icon from '@mui/icons-material/Inventory2'
+import ContentCopyIcon from '@mui/icons-material/ContentCopy'
+import LoginIcon from '@mui/icons-material/Login'
 import UpdateIcon from '@mui/icons-material/Update'
 
 type LoginStatus = 'ok' | 'error' | 'pending'
@@ -62,6 +66,12 @@ interface PackageRecord {
   packageName: string
   source: string
   version: string
+}
+
+interface TokenResponse {
+  token: string
+  expires_at: string | null
+  username: string | null
 }
 
 const POLL_INTERVAL_MS = 5000
@@ -124,6 +134,12 @@ function App() {
   const [data, setData] = useState<StatusResponse | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [fetchError, setFetchError] = useState<string | null>(null)
+  // The b4A bearer token, available to the whole dashboard (null = logged out).
+  const [token, setToken] = useState<string | null>(null)
+  const [loginUser, setLoginUser] = useState('')
+  const [loginPassword, setLoginPassword] = useState('')
+  const [loginError, setLoginError] = useState<string | null>(null)
+  const [isLoggingIn, setIsLoggingIn] = useState(false)
   const [packages, setPackages] = useState<PackageRecord[]>([])
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null)
 
@@ -134,6 +150,12 @@ function App() {
       const json: StatusResponse = await res.json()
       setData(json)
       setFetchError(null)
+      if (json.status === 'ok') {
+        const tokenRes = await fetch('/api/token', { cache: 'no-store' })
+        setToken(tokenRes.ok ? ((await tokenRes.json()) as TokenResponse).token : null)
+      } else {
+        setToken(null)
+      }
     } catch (err) {
       setFetchError(err instanceof Error ? err.message : 'Failed to load status')
     }
@@ -166,6 +188,28 @@ function App() {
       await fetchStatus()
     } finally {
       setIsRefreshing(false)
+    }
+  }
+
+  const handleLogin = async (event: FormEvent) => {
+    event.preventDefault()
+    setIsLoggingIn(true)
+    setLoginError(null)
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: loginUser, password: loginPassword }),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const state: StatusResponse = await res.json()
+      if (state.status !== 'ok') setLoginError(state.message)
+      else setLoginPassword('')
+      await fetchStatus()
+    } catch (err) {
+      setLoginError(err instanceof Error ? err.message : 'Login failed')
+    } finally {
+      setIsLoggingIn(false)
     }
   }
 
@@ -263,6 +307,52 @@ function App() {
                 <Alert severity="warning" sx={{ mt: 1.5 }}>
                   Could not reach the backend: {fetchError}
                 </Alert>
+              )}
+
+              {token ? (
+                <Stack direction="row" spacing={1} sx={{ mt: 1.5, alignItems: 'center' }}>
+                  <Chip size="small" color="success" label="Token available" />
+                  <Typography variant="caption" sx={{ flexGrow: 1 }} noWrap>
+                    {token.slice(0, 18)}…
+                  </Typography>
+                  <IconButton
+                    size="small"
+                    aria-label="copy token"
+                    onClick={() => navigator.clipboard?.writeText(token)}
+                  >
+                    <ContentCopyIcon fontSize="small" />
+                  </IconButton>
+                </Stack>
+              ) : (
+                <Box component="form" onSubmit={handleLogin} sx={{ mt: 2 }}>
+                  <Stack spacing={1.5}>
+                    <TextField
+                      size="small"
+                      label="Username (USER/DEPARTMENT)"
+                      value={loginUser}
+                      onChange={(e) => setLoginUser(e.target.value)}
+                      autoComplete="username"
+                    />
+                    <TextField
+                      size="small"
+                      type="password"
+                      label="Password"
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      autoComplete="current-password"
+                    />
+                    {loginError && <Alert severity="error">{loginError}</Alert>}
+                    <Button
+                      type="submit"
+                      variant="contained"
+                      size="small"
+                      startIcon={isLoggingIn ? <CircularProgress size={16} /> : <LoginIcon />}
+                      disabled={isLoggingIn || !loginUser || !loginPassword}
+                    >
+                      Log in
+                    </Button>
+                  </Stack>
+                </Box>
               )}
 
               <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>

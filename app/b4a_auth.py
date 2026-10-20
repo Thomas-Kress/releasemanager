@@ -66,6 +66,10 @@ class AuthManager:
         self._lock = asyncio.Lock()
         self._task: Optional[asyncio.Task] = None
         self._wake_event = asyncio.Event()
+        # Credentials entered in the dashboard; they take precedence over .env
+        # and are kept in memory only (used for background token refreshes).
+        self._override: Optional[tuple[str, str]] = None
+        self._login_lock = asyncio.Lock()
 
     async def start(self) -> None:
         if self._task is None:
@@ -83,6 +87,23 @@ class AuthManager:
     async def get_state(self) -> dict:
         async with self._lock:
             return self._state.to_public_dict()
+
+    async def login(self, username: str, password: str) -> dict:
+        """Logs in with credentials given by the dashboard user. On success
+        they replace the .env credentials for background refreshes."""
+        async with self._login_lock:
+            previous = self._override
+            self._override = (username, password)
+            await self._attempt_login()
+            state = await self.get_state()
+            if state["status"] != "ok":
+                self._override = previous
+            return state
+
+    async def get_token(self) -> Optional[str]:
+        """The current ``Bearer ...`` token, or None if not logged in."""
+        async with self._lock:
+            return self._state.token if self._state.status == "ok" else None
 
     async def force_refresh(self) -> None:
         """Wake the background loop so it retries immediately."""
@@ -105,8 +126,9 @@ class AuthManager:
 
     async def _attempt_login(self) -> float:
         settings = get_settings()
+        username, password = self._override or (settings.username, settings.password)
 
-        if settings.missing:
+        if settings.missing and not (self._override and settings.base_url):
             message = f"Missing configuration: {', '.join(settings.missing)}"
             logger.error(message)
             await self._set_state(status="error", message=message, token=None, expires_at=None)
@@ -115,8 +137,8 @@ class AuthManager:
         base_url = settings.base_url.rstrip("/")
         login_url = f"{base_url}/login"
         payload = {
-            "username": settings.username,
-            "password": settings.password,
+            "username": username,
+            "password": password,
             "language": "en",
         }
 

@@ -40,3 +40,6 @@ pid.txt
 # --- OS ---
 .DS_Store
 Thumbs.db
+
+# --- Local data ---
+data/*.db*
