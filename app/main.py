@@ -1,6 +1,6 @@
 """FastAPI backend for the dashboard: b4A login status and received packages.
 
-The webhook receiver is a separate app (``app/webhook_app.py``, port 8080)
+The webhook receiver is a separate app (``app/webhook_app.py``, WEBHOOK_PORT)
 that writes into SQLite; this API only reads from that database. The React
 frontend (``frontend/``, port 5173) proxies ``/api/*`` calls to this backend
 (see ``frontend/vite.config.ts``).
@@ -11,6 +11,7 @@ from __future__ import annotations
 import os
 from contextlib import asynccontextmanager
 from datetime import date
+from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Request
 
@@ -18,6 +19,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from .b4a_auth import auth_manager
 from .b4a_client import B4AError, run_module
+from .config import get_settings
 from . import db
 
 
@@ -37,6 +39,11 @@ def api_packages() -> list[dict]:
     return db.list_packages()
 
 
+def _require_b4a() -> None:
+    if not get_settings().configured:
+        raise HTTPException(status_code=404, detail="The b4A ReST API is not configured.")
+
+
 @app.get("/api/status")
 async def api_status() -> dict:
     return await auth_manager.get_state()
@@ -45,6 +52,7 @@ async def api_status() -> dict:
 @app.post("/api/refresh")
 async def api_refresh() -> dict:
     """Wakes the background login loop so it retries immediately."""
+    _require_b4a()
     await auth_manager.force_refresh()
     return {"triggered": True}
 
@@ -68,6 +76,7 @@ class LoginRequest(BaseModel):
 @app.post("/api/login")
 async def api_login(req: LoginRequest, request: Request) -> dict:
     """Logs in to Automic through b4A with the given credentials."""
+    _require_b4a()
     _require_local(request)
     return await auth_manager.login(req.username, req.password)
 
@@ -75,6 +84,7 @@ async def api_login(req: LoginRequest, request: Request) -> dict:
 @app.get("/api/token")
 async def api_token(request: Request) -> dict:
     """Returns the current b4A bearer token for use by the dashboard."""
+    _require_b4a()
     _require_local(request)
     token = await auth_manager.get_token()
     if not token:
@@ -91,6 +101,7 @@ class ModuleRequest(BaseModel):
 @app.post("/api/b4a/module")
 async def api_b4a_module(req: ModuleRequest, request: Request) -> dict:
     """Runs a b4A module with the backend's login token and returns job + report."""
+    _require_b4a()
     _require_local(request)
     try:
         return await run_module(req.name, req.options)
@@ -180,6 +191,45 @@ def api_set_release_dates(release_id: int, req: ReleaseDatesUpdate, request: Req
         req.start_date.isoformat() if req.start_date else None,
         req.end_date.isoformat() if req.end_date else None,
     )
+    if release is None:
+        raise HTTPException(status_code=404, detail="Release not found")
+    return release
+
+
+class ConnectionCreate(BaseModel):
+    environment: Literal["development", "test", "production"]
+    name: str = Field(min_length=1, max_length=200)
+    description: str = Field(default="", max_length=2000)
+
+
+@app.get("/api/connections")
+def api_connections() -> list[dict]:
+    return db.list_connections()
+
+
+@app.post("/api/connections", status_code=201)
+def api_create_connection(req: ConnectionCreate, request: Request) -> dict:
+    _require_local(request)
+    return db.create_connection(req.environment, req.name.strip(), req.description.strip())
+
+
+class ReleaseDescriptionUpdate(BaseModel):
+    description: str = Field(max_length=2000)
+
+
+@app.get("/api/releases/{release_id}/log")
+def api_release_log(release_id: int) -> list[dict]:
+    log = db.list_release_log(release_id)
+    if log is None:
+        raise HTTPException(status_code=404, detail="Release not found")
+    return log
+
+
+@app.patch("/api/releases/{release_id}/description")
+def api_set_release_description(release_id: int, req: ReleaseDescriptionUpdate, request: Request) -> dict:
+    """The description stays editable in every status, including closed."""
+    _require_local(request)
+    release = db.set_release_description(release_id, req.description.strip())
     if release is None:
         raise HTTPException(status_code=404, detail="Release not found")
     return release

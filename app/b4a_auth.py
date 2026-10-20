@@ -72,6 +72,9 @@ class AuthManager:
         self._login_lock = asyncio.Lock()
 
     async def start(self) -> None:
+        if not get_settings().configured:
+            logger.info("No b4A ReST API settings in .env; login and token handling disabled.")
+            return
         if self._task is None:
             self._task = asyncio.create_task(self._run_forever())
 
@@ -85,8 +88,18 @@ class AuthManager:
             self._task = None
 
     async def get_state(self) -> dict:
+        if not get_settings().configured:
+            return {
+                "enabled": False,
+                "status": "disabled",
+                "message": "The b4A ReST API is not configured.",
+                "expires_at": None,
+                "seconds_remaining": None,
+                "last_checked": None,
+                "username": None,
+            }
         async with self._lock:
-            return self._state.to_public_dict()
+            return {"enabled": True, **self._state.to_public_dict()}
 
     async def login(self, username: str, password: str) -> dict:
         """Logs in with credentials given by the dashboard user. On success

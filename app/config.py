@@ -17,6 +17,12 @@ class Settings:
     password: str | None
 
     @property
+    def configured(self) -> bool:
+        """False when none of the b4A ReST API settings are present; login and
+        token handling are then switched off entirely."""
+        return bool(self.base_url or self.username or self.password)
+
+    @property
     def missing(self) -> list[str]:
         missing: list[str] = []
         if not self.base_url:
@@ -41,3 +47,9 @@ def get_settings() -> Settings:
         username=os.environ.get("B4A_REST_API_USERNAME"),
         password=os.environ.get("B4A_REST_API_PASSWORD"),
     )
+
+
+def get_webhook_port() -> int:
+    """Port the webhook receiver listens on (WEBHOOK_PORT, default 8080)."""
+    raw = os.environ.get("WEBHOOK_PORT", "").strip()
+    return int(raw) if raw else 8080

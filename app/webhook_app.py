@@ -1,4 +1,4 @@
-"""Standalone webhook receiver (port 8080). Stores events in SQLite only."""
+"""Standalone webhook receiver (port from WEBHOOK_PORT, default 8080). Stores events in SQLite only."""
 
 import time
 from datetime import datetime, timezone
