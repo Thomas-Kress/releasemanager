@@ -129,6 +129,22 @@ class ReleaseStatusUpdate(BaseModel):
     status: int = Field(description="1 = planned, 2 = active, 3 = closed")
 
 
+class PackageRelease(BaseModel):
+    release_id: int | None = Field(alias="releaseId")
+
+
+@app.patch("/api/packages/{package_id}/release")
+def api_set_package_release(package_id: int, req: PackageRelease, request: Request) -> dict:
+    """Moves a package into a release (null = back to unassigned). Closed releases are locked."""
+    _require_local(request)
+    try:
+        return db.set_package_release(package_id, req.release_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
 @app.get("/api/releases")
 def api_releases() -> list[dict]:
     return db.list_releases()

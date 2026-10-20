@@ -1,7 +1,9 @@
 import {
+  Fragment,
   useCallback,
   useEffect,
   useState,
+  type DragEvent,
   type FormEvent,
   type MouseEvent,
   type ReactNode,
@@ -71,6 +73,8 @@ interface StatusResponse {
 }
 
 interface PackageRecord {
+  id: number
+  releaseId: number | null
   receivedAt: string
   packageName: string
   source: string
@@ -168,6 +172,8 @@ function App() {
   const [releases, setReleases] = useState<ReleaseRecord[]>([])
   const [releaseDialogOpen, setReleaseDialogOpen] = useState(false)
   const [releaseForm, setReleaseForm] = useState({ name: '', description: '', startDate: '', endDate: '' })
+  const [dragOverRelease, setDragOverRelease] = useState<number | 'packages' | null>(null)
+  const [moveError, setMoveError] = useState<string | null>(null)
   const [releaseError, setReleaseError] = useState<string | null>(null)
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null)
 
@@ -237,6 +243,49 @@ function App() {
     }
   }
 
+  // Drag & drop: a package row/chip carries its id; dropping on a release row
+  // assigns it, dropping on the Packages table unassigns it. Closed releases refuse both.
+  const movePackage = async (packageId: number, releaseId: number | null) => {
+    setMoveError(null)
+    try {
+      const res = await fetch(`/api/packages/${packageId}/release`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ releaseId }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        throw new Error(typeof body?.detail === 'string' ? body.detail : `HTTP ${res.status}`)
+      }
+    } catch (err) {
+      setMoveError(err instanceof Error ? err.message : 'Failed to move package')
+    } finally {
+      await fetchPackages()
+    }
+  }
+
+  const dragPackage = (id: number) => (e: DragEvent) => {
+    e.dataTransfer.setData('text/package-id', String(id))
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  const dropTarget = (key: number | 'packages', releaseId: number | null, enabled: boolean) => ({
+    onDragOver: (e: DragEvent) => {
+      if (!enabled || !e.dataTransfer.types.includes('text/package-id')) return
+      e.preventDefault()
+      e.dataTransfer.dropEffect = 'move'
+      setDragOverRelease(key)
+    },
+    onDragLeave: () => setDragOverRelease((cur) => (cur === key ? null : cur)),
+    onDrop: (e: DragEvent) => {
+      setDragOverRelease(null)
+      const id = Number(e.dataTransfer.getData('text/package-id'))
+      if (!enabled || !id) return
+      e.preventDefault()
+      void movePackage(id, releaseId)
+    },
+  })
+
   const handleReleaseDates = async (r: ReleaseRecord, dates: Partial<Pick<ReleaseRecord, 'startDate' | 'endDate'>>) => {
     const next = { startDate: r.startDate, endDate: r.endDate, ...dates }
     setReleases((prev) => prev.map((x) => (x.id === r.id ? { ...x, ...next } : x)))
@@ -276,6 +325,8 @@ function App() {
     }, POLL_INTERVAL_MS)
     return () => clearInterval(id)
   }, [fetchStatus, fetchPackages, fetchReleases])
+
+  const unassignedPackages = packages.filter((p) => p.releaseId === null)
 
   const handleRetry = async () => {
     setIsRefreshing(true)
@@ -474,9 +525,18 @@ function App() {
             <Typography variant="h5" component="h2">
               Packages
             </Typography>
-            <Chip size="small" label={packages.length} />
+            <Chip size="small" label={unassignedPackages.length} />
           </Stack>
-          <TableContainer component={Paper}>
+          {moveError && (
+            <Alert severity="error" onClose={() => setMoveError(null)} sx={{ mb: 2 }}>
+              {moveError}
+            </Alert>
+          )}
+          <TableContainer
+            component={Paper}
+            {...dropTarget('packages', null, true)}
+            sx={dragOverRelease === 'packages' ? { outline: '2px dashed', outlineColor: 'primary.main' } : undefined}
+          >
             <Table size="small" aria-label="packages">
               <TableHead>
                 <TableRow>
@@ -487,15 +547,15 @@ function App() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {packages.length === 0 && (
+                {unassignedPackages.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={4} align="center" sx={{ color: 'text.secondary' }}>
-                      No packages received yet.
+                      No unassigned packages.
                     </TableCell>
                   </TableRow>
                 )}
-                {packages.map((p, i) => (
-                  <TableRow key={`${p.receivedAt}-${i}`} hover>
+                {unassignedPackages.map((p) => (
+                  <TableRow key={p.id} hover draggable onDragStart={dragPackage(p.id)} sx={{ cursor: 'grab' }}>
                     <TableCell>{p.packageName}</TableCell>
                     <TableCell>{p.source}</TableCell>
                     <TableCell>
@@ -546,8 +606,16 @@ function App() {
                     </TableCell>
                   </TableRow>
                 )}
-                {releases.map((r) => (
-                  <TableRow key={r.id} hover>
+                {releases.map((r) => {
+                  const inRelease = packages.filter((p) => p.releaseId === r.id)
+                  const open = r.status !== 3
+                  return (
+                  <Fragment key={r.id}>
+                  <TableRow
+                    hover
+                    {...dropTarget(r.id, r.id, open)}
+                    sx={dragOverRelease === r.id ? { outline: '2px dashed', outlineColor: 'primary.main' } : undefined}
+                  >
                     <TableCell>{r.name}</TableCell>
                     <TableCell>{r.description}</TableCell>
                     <TableCell>
@@ -584,7 +652,29 @@ function App() {
                       </Select>
                     </TableCell>
                   </TableRow>
-                ))}
+                  {inRelease.length > 0 && (
+                    <TableRow {...dropTarget(r.id, r.id, open)}>
+                      <TableCell colSpan={5} sx={{ py: 1, borderBottom: 0 }}>
+                        <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
+                          <Inventory2Icon fontSize="small" color="action" />
+                          {inRelease.map((p) => (
+                            <Chip
+                              key={p.id}
+                              size="small"
+                              variant="outlined"
+                              label={`${p.packageName} ${p.version} (${p.source})`}
+                              draggable={open}
+                              onDragStart={dragPackage(p.id)}
+                              sx={open ? { cursor: 'grab' } : undefined}
+                            />
+                          ))}
+                        </Stack>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  </Fragment>
+                  )
+                })}
               </TableBody>
             </Table>
           </TableContainer>

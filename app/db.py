@@ -24,6 +24,16 @@ CREATE INDEX IF NOT EXISTS idx_packages_received_at ON packages (received_at);
 """
 
 
+def _ensure_package_release_column(conn: sqlite3.Connection) -> None:
+    """Packages can be assigned to a release (NULL = unassigned)."""
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(packages)")}
+    if "release_id" not in cols:
+        try:
+            conn.execute("ALTER TABLE packages ADD COLUMN release_id INTEGER REFERENCES releases(id)")
+        except sqlite3.OperationalError:  # the other process added it first
+            pass
+
+
 @contextmanager
 def connect() -> Iterator[sqlite3.Connection]:
     DB_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -32,6 +42,7 @@ def connect() -> Iterator[sqlite3.Connection]:
     try:
         conn.execute("PRAGMA journal_mode=WAL")  # lets the API read while the webhook writes
         conn.executescript(_SCHEMA)
+        _ensure_package_release_column(conn)
         yield conn
         conn.commit()
     finally:
@@ -50,10 +61,12 @@ def list_packages() -> list[dict]:
     """All received packages, newest first, in the shape the frontend expects."""
     with connect() as conn:
         rows = conn.execute(
-            "SELECT received_at, package_name, source, version FROM packages ORDER BY id DESC"
+            "SELECT id, received_at, package_name, source, version, release_id FROM packages ORDER BY id DESC"
         ).fetchall()
     return [
         {
+            "id": r["id"],
+            "releaseId": r["release_id"],
             "receivedAt": r["received_at"],
             "packageName": r["package_name"],
             "source": r["source"],
@@ -151,3 +164,26 @@ def set_release_dates(release_id: int, start_date: str | None, end_date: str | N
         )
         row = conn.execute("SELECT * FROM releases WHERE id = ?", (release_id,)).fetchone()
     return _release_row(row) if row else None
+
+
+def set_package_release(package_id: int, release_id: int | None) -> dict:
+    """Moves a package into a release (or back to unassigned with None).
+
+    Raises LookupError if the package/release does not exist and ValueError if
+    the release the package is moving into or out of is closed (status 3).
+    """
+    with connect() as conn:
+        _ensure_releases(conn)
+        pkg = conn.execute("SELECT release_id FROM packages WHERE id = ?", (package_id,)).fetchone()
+        if pkg is None:
+            raise LookupError("Package not found")
+        for rid in (pkg["release_id"], release_id):
+            if rid is None:
+                continue
+            rel = conn.execute("SELECT name, status FROM releases WHERE id = ?", (rid,)).fetchone()
+            if rel is None:
+                raise LookupError("Release not found")
+            if rel["status"] == 3:
+                raise ValueError(f"Release '{rel['name']}' is closed")
+        conn.execute("UPDATE packages SET release_id = ? WHERE id = ?", (release_id, package_id))
+    return {"id": package_id, "releaseId": release_id}
