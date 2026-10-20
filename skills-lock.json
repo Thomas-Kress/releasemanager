@@ -1,0 +1,641 @@
+{
+  "version": 1,
+  "skills": {
+    "b4a-info-agent": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-info-agent/SKILL.md",
+      "computedHash": "0d21aae805a3311656a07fe98aee3e80ab6a4142987ed02d36998e7b6d21b5f1"
+    },
+    "b4a-info-breakpointread": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-info-breakpointread/SKILL.md",
+      "computedHash": "81276e5a910333afb8cd26447c49b3669a8828a8bdb07b80bfedf0232e35661a"
+    },
+    "b4a-info-checkpointread": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-info-checkpointread/SKILL.md",
+      "computedHash": "beb7d587672c5a82aa3c8ac3f784672a835832154d02b8c8e046446f908e2a36"
+    },
+    "b4a-info-deactivateconditionread": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-info-deactivateconditionread/SKILL.md",
+      "computedHash": "68ff9cb6c06f60e9b77344083dfcf82c919449ba1f660a1882a4f89e5f59b483"
+    },
+    "b4a-info-documentationread": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-info-documentationread/SKILL.md",
+      "computedHash": "c6279ed7702aed780de8f0ebd89080f38680e0f35857969de1db2d7cc87af095"
+    },
+    "b4a-info-environment": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-info-environment/SKILL.md",
+      "computedHash": "d33d229dc79f2fa9d6ff2ff82a47c2da6952908ac2a9ce035788463469919085"
+    },
+    "b4a-info-externalreferences": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-info-externalreferences/SKILL.md",
+      "computedHash": "23acd112427a3f78ae75a36df0922bc7e4be176a74833d28da7ed8fbaf7f3d65"
+    },
+    "b4a-info-folder": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-info-folder/SKILL.md",
+      "computedHash": "6aa11650e21dc4dcc7bba53b467681d3d74d032d802407c8a36c0930cae1deeb"
+    },
+    "b4a-info-patternsearch": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-info-patternsearch/SKILL.md",
+      "computedHash": "a47754838c5d1e41d34e9a7045a4611b621b6652c9e061629cf927bb419ea9cc"
+    },
+    "b4a-info-processsearch": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-info-processsearch/SKILL.md",
+      "computedHash": "b55df79831484c2aebe1a08b30406e99c595f34c1d635a78ace0a8b8b886f99f"
+    },
+    "b4a-info-reportread": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-info-reportread/SKILL.md",
+      "computedHash": "a4768b3652459901205f92ee355f9547a5c2e9879b2c13db29b248ae23cc62ec"
+    },
+    "b4a-info-schedule": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-info-schedule/SKILL.md",
+      "computedHash": "747213892fe79dae58f76b826fb260b80b7c8d3c8fb6dbe8930a5f0fd9bce26a"
+    },
+    "b4a-info-searchforuse": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-info-searchforuse/SKILL.md",
+      "computedHash": "e5428fdec1b693a0556260b4f22b9d8bf32fd9241a2d484c9ef04d17e5963c59"
+    },
+    "b4a-info-syncattributeread": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-info-syncattributeread/SKILL.md",
+      "computedHash": "b392b3b567588f986a4620cb4396acbb957acb0d0f2d7a19f54f0a6396df9bcd"
+    },
+    "b4a-info-typecount": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-info-typecount/SKILL.md",
+      "computedHash": "8e9c2629888d60d38937496ca913ce52655eac308da4c8c87a8d078b34e99912"
+    },
+    "b4a-info-userread": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-info-userread/SKILL.md",
+      "computedHash": "11c19618a4180060e2a5f262e75de86894854076c3610088f60304a4f3413e3f"
+    },
+    "b4a-info-variableread": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-info-variableread/SKILL.md",
+      "computedHash": "c090294e2d92690a9277eb193fdb5c663d2604b99eebbf1fee8a0a3ef51bf423"
+    },
+    "b4a-info-variablesearch": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-info-variablesearch/SKILL.md",
+      "computedHash": "99fe529c03b01ac981fc20719e2a93bba96e65a2956718c28adf015c33aa834f"
+    },
+    "b4a-info-variablesyncread": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-info-variablesyncread/SKILL.md",
+      "computedHash": "0fd232881bae68201467023712fdcee6ec098c964456843fddf6cb3127b4924c"
+    },
+    "b4a-info-versionmanagement": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-info-versionmanagement/SKILL.md",
+      "computedHash": "7e62453593e6c37a3f4f9e23119b5f4cad1087abd95db7d90c54bba562cda935"
+    },
+    "b4a-info-workflow": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-info-workflow/SKILL.md",
+      "computedHash": "32af7acff782154cb21daeaff01b6fcc844f50202a6af0251fd47813160d6c27"
+    },
+    "b4a-login": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-login/SKILL.md",
+      "computedHash": "6cb54972d73d1d9075097b87ecf192c2e999e879750de076df68bfccb8da7ecb"
+    },
+    "b4a-mc-agentgroupcreate": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-mc-agentgroupcreate/SKILL.md",
+      "computedHash": "5264bb695fd68c43b28791bc39df248e5e6a447d8a47050aad1de676f3d293a7"
+    },
+    "b4a-mc-agentgroupedit": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-mc-agentgroupedit/SKILL.md",
+      "computedHash": "3c25fdc0e6b6858aecc90522b7fc5fcac4319e643c46f3a567314dab430d0498"
+    },
+    "b4a-mc-agentlogset": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-mc-agentlogset/SKILL.md",
+      "computedHash": "93c4d631d2cc736ca8e9b288126154587127afa93d84cbabbc6d7572270827b9"
+    },
+    "b4a-mc-agentreplace": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-mc-agentreplace/SKILL.md",
+      "computedHash": "1048f90c25040948c1926230b4a9cc633e694a8256bac750db04e5b53cafc68f"
+    },
+    "b4a-mc-create": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-mc-create/SKILL.md",
+      "computedHash": "30596586257f2de85c6f5b473b59dae323c77f35550ea528ccedd514b3cfc3ff"
+    },
+    "b4a-mc-deactivateconditionset": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-mc-deactivateconditionset/SKILL.md",
+      "computedHash": "ec03d33cc885988420718cf06409354d19d8f28f63d637d72b16a725924a8683"
+    },
+    "b4a-mc-delete": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-mc-delete/SKILL.md",
+      "computedHash": "6d9b096ebf67afa3d0376b390dcd35080275d09fdf657b18280e779615ddde15"
+    },
+    "b4a-mc-deleterecursive": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-mc-deleterecursive/SKILL.md",
+      "computedHash": "c44656ffb897279019e5fdf879d26fe373d1745bf1ee6393c33c9a5ddd6e8ef3"
+    },
+    "b4a-mc-documentationedit": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-mc-documentationedit/SKILL.md",
+      "computedHash": "6c2ba9e8b02dc6de43bc1834572386af6dadd40d56213cd96e6db642a49502b6"
+    },
+    "b4a-mc-generateatruntimedeactivate": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-mc-generateatruntimedeactivate/SKILL.md",
+      "computedHash": "49cc23d538750c9d7ba8e924f934a01760c64f4820364b4b3f1b4470b5738903"
+    },
+    "b4a-mc-locationsync": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-mc-locationsync/SKILL.md",
+      "computedHash": "eed40304af9001c7e6a111eb12b487452ec8859320dccde1daa917e0cd6f5ddb"
+    },
+    "b4a-mc-loginedit": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-mc-loginedit/SKILL.md",
+      "computedHash": "feb09989e7f6a2e6426b4558021645544dd180bf23c4dc9e84757d55c0ad982d"
+    },
+    "b4a-mc-maxruntimeedit": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-mc-maxruntimeedit/SKILL.md",
+      "computedHash": "3f476989ed5a21d83e7347e18cade7378a617a5828484420e56fc19110b440fb"
+    },
+    "b4a-mc-move": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-mc-move/SKILL.md",
+      "computedHash": "0c0ea14b7d045c814152d2a9b75baa1fc4388511496024063146f76780fdb473"
+    },
+    "b4a-mc-objectpromptsetedit": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-mc-objectpromptsetedit/SKILL.md",
+      "computedHash": "dceaf08cd55b72063caeb9f4c6ceae8d3b05983b3c7b5ea9e2c359fff5dc8d0e"
+    },
+    "b4a-mc-objectvariableedit": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-mc-objectvariableedit/SKILL.md",
+      "computedHash": "bab93742331849cc67526f9eb606215154b5cf0117428661187e3fd6f8ea1a94"
+    },
+    "b4a-mc-processedit": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-mc-processedit/SKILL.md",
+      "computedHash": "a809119fa5e051cfe8692e64e2c71b01ab119d2fc39e1508f9cbfcd1fe7ec504"
+    },
+    "b4a-mc-rename": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-mc-rename/SKILL.md",
+      "computedHash": "9f32a0d80bf234b52a8458b22ed7ec9f7a2b485b475c955a4caaf9f4c3cf6ff7"
+    },
+    "b4a-mc-restore": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-mc-restore/SKILL.md",
+      "computedHash": "c401cbb5cb884bfd51025fa44434990b24b65c165e563848c9aa250cbd8cdd6f"
+    },
+    "b4a-mc-resultevaluationset": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-mc-resultevaluationset/SKILL.md",
+      "computedHash": "a0b931da39e9efb8c29e011ab6de9cde3d69650e0863f0a8e6b7ed0570f40170"
+    },
+    "b4a-mc-scheduletaskadd": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-mc-scheduletaskadd/SKILL.md",
+      "computedHash": "b80089d5adf0fa84dc0419a44eac8ee82c93b84cda7e8717e45a6d71f3520e9e"
+    },
+    "b4a-mc-scheduletaskdeactivate": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-mc-scheduletaskdeactivate/SKILL.md",
+      "computedHash": "8cca4d7a5b585516880bb43c84d213e78a0cf18fc08ffc8f032b8376ea175f51"
+    },
+    "b4a-mc-scheduletaskremove": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-mc-scheduletaskremove/SKILL.md",
+      "computedHash": "37502951a5d09a0f975cb74d4d55888ae60aeb2e903b6eb2834f2388b628bd2d"
+    },
+    "b4a-mc-servicelevelobjectiveedit": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-mc-servicelevelobjectiveedit/SKILL.md",
+      "computedHash": "d398330a5e8306f4a1d582349024903b77250dd0eff132858ecd6a2c889b75c2"
+    },
+    "b4a-mc-syncattributeedit": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-mc-syncattributeedit/SKILL.md",
+      "computedHash": "84c2b196053277c58595d449da3fe680d07c364246d29d489dc870c9c41ccdd0"
+    },
+    "b4a-mc-titlegenerate": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-mc-titlegenerate/SKILL.md",
+      "computedHash": "d1ca44fb6cf23f3b57110376051aea55717feb25bd9ecbb3af365debff2d78b2"
+    },
+    "b4a-mc-userdeactivate": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-mc-userdeactivate/SKILL.md",
+      "computedHash": "384ce5277f5008806eeb117f74170c8a17e8913b024083e6dffe3865a5bcaa93"
+    },
+    "b4a-mc-useredit": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-mc-useredit/SKILL.md",
+      "computedHash": "0ebaaefa11aa87a39d94e9c86146c2c0e7cb4dd880fceb08b8108acd23a0a5f6"
+    },
+    "b4a-mc-usergroupaddusers": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-mc-usergroupaddusers/SKILL.md",
+      "computedHash": "238260b741811a6ebc1a69c6fb82ff59e10cea2672d1e277147705bf4ad9410e"
+    },
+    "b4a-mc-usergroupauthorizationedit": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-mc-usergroupauthorizationedit/SKILL.md",
+      "computedHash": "f39ba16d394b436a184aee41cc48e47103a968793cf974bcbd48810eeeb4cccb"
+    },
+    "b4a-mc-usergroupprivilegeedit": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-mc-usergroupprivilegeedit/SKILL.md",
+      "computedHash": "e33e13ba3bfb2e7e0bc5602610e8452fae45c846ac560d6ada91a2a795d6728c"
+    },
+    "b4a-mc-userprivilegeedit": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-mc-userprivilegeedit/SKILL.md",
+      "computedHash": "5da5546b05a39ca656810d001fed103720f4fa21058c6431f80036cec6560111"
+    },
+    "b4a-mc-variabledelete": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-mc-variabledelete/SKILL.md",
+      "computedHash": "483046dca09ace106ad32b9c57e3702b7e754e6264224a78f8ba8f2fcb7a42e8"
+    },
+    "b4a-mc-variableedit": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-mc-variableedit/SKILL.md",
+      "computedHash": "3c51a5bcb1b8ef04a7759b19b30ca7e9820e50d53f51aaff305a4bb2b7e3a310"
+    },
+    "b4a-mc-variableset": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-mc-variableset/SKILL.md",
+      "computedHash": "9def8c59392fdcda00d9ef34b16b6ae4e47a91ea717c4149f8c32567c01be915"
+    },
+    "b4a-mc-variablesyncedit": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-mc-variablesyncedit/SKILL.md",
+      "computedHash": "dea7a30ec930204100fb39aa58479a68b659c3db0619ddb76bb84764e0808cd4"
+    },
+    "b4a-mc-workflowtaskadd": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-mc-workflowtaskadd/SKILL.md",
+      "computedHash": "4c832a1bcb3b6014489ced0054cc22bf7898e7bf13ff42c60505d9b6f213e280"
+    },
+    "b4a-mc-workflowtaskdeactivate": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-mc-workflowtaskdeactivate/SKILL.md",
+      "computedHash": "ffeebccc6bdcb07803ecbd4cf4f324b363fc2c8f6c5e2d16eb4ac622987eaeb7"
+    },
+    "b4a-mc-workflowtaskreplace": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-mc-workflowtaskreplace/SKILL.md",
+      "computedHash": "f3bf75a388328945c5081ff9741f05ef52c0ea56a901078984ac6a274810e8f7"
+    },
+    "b4a-module": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-module/SKILL.md",
+      "computedHash": "44c1374b519bc3b6906430bc4c67a6ddca581258e791f78e41227ee1a65a0e6c"
+    },
+    "b4a-pm-actionregister": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-pm-actionregister/SKILL.md",
+      "computedHash": "be32ca8df60a55eb379b32b37b443323c3e6e0475ca478ea0e45816a14c78c1c"
+    },
+    "b4a-pm-build": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-pm-build/SKILL.md",
+      "computedHash": "38dc3749992d60af441ceb43da1915c97d1d332a2c2d199c7f11f927cb9986ee"
+    },
+    "b4a-pm-compliance": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-pm-compliance/SKILL.md",
+      "computedHash": "91e6608581139272886077baa5d98d145ea820570f127793c027e444277bd89d"
+    },
+    "b4a-pm-credentialstorageadd": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-pm-credentialstorageadd/SKILL.md",
+      "computedHash": "9f8b29034eb8f08588f518a8fffd24e9be8f36caed12eeecc58db445c6e89d1f"
+    },
+    "b4a-pm-credentialstoragedownload": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-pm-credentialstoragedownload/SKILL.md",
+      "computedHash": "49cf288ea5aa90568fe883f70b1facc3d8d278c8801a21ce86c29eda06ba74e8"
+    },
+    "b4a-pm-dependencycheck": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-pm-dependencycheck/SKILL.md",
+      "computedHash": "b32cd6b83e95c190c838dd6646da1780e879310d430abfafa263d7c16c6882a4"
+    },
+    "b4a-pm-dependencydefinitioncreate": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-pm-dependencydefinitioncreate/SKILL.md",
+      "computedHash": "59cf1bcab3e67fb3f8fa46e39d47f6b645a63619f3b8c23add6bb607bb7544a2"
+    },
+    "b4a-pm-dependencydefinitionverify": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-pm-dependencydefinitionverify/SKILL.md",
+      "computedHash": "3d4bd552b7c17de6c71e90273da1a0d700f7764fd3f4dc112d48b8fa24df29a3"
+    },
+    "b4a-pm-docbuilder": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-pm-docbuilder/SKILL.md",
+      "computedHash": "f6812a64e81d536dbe8061e3c62a496195429e27080f5e46254f089eba7ed0f7"
+    },
+    "b4a-pm-importbpmn": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-pm-importbpmn/SKILL.md",
+      "computedHash": "2ef8ad58eb3bbc3f880f57836ccdf19d7994b9792004ef92d84858b17f7a3ef3"
+    },
+    "b4a-pm-index": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-pm-index/SKILL.md",
+      "computedHash": "51d5f1255f4a0ec9f42bb5e71ff3bbf7f1f4b0dc1ada6808feb1ddc7ab815cc6"
+    },
+    "b4a-pm-indexdocbuilder": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-pm-indexdocbuilder/SKILL.md",
+      "computedHash": "d87bda707aa42d202ceef950ad17339cfc34d53e6840f0645c55081feeacc455"
+    },
+    "b4a-pm-init": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-pm-init/SKILL.md",
+      "computedHash": "399a5bfa6fdf61577620757fd6b5abb7c7982d80cb94480296ecf4924d2d6075"
+    },
+    "b4a-pm-install": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-pm-install/SKILL.md",
+      "computedHash": "f3d74bafb0267115ebb7b3462d020bef11272ddea6f30e223756bef37cda6a2d"
+    },
+    "b4a-pm-list": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-pm-list/SKILL.md",
+      "computedHash": "399e410d19fbde15522189e56f6a27a890a3ae60a3dc777ba3162fcac7ef437f"
+    },
+    "b4a-pm-listfolders": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-pm-listfolders/SKILL.md",
+      "computedHash": "3c29385c5c7899fa97de23305feb0b2641494935f4daccdd962e4c59b8e3afc9"
+    },
+    "b4a-pm-reportinstallation": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-pm-reportinstallation/SKILL.md",
+      "computedHash": "fb2174c3db37edb9911de639ee9895104c44f8ad31751af2f644eb4eb66f135f"
+    },
+    "b4a-pm-reportmodifications": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-pm-reportmodifications/SKILL.md",
+      "computedHash": "81581ad112d75a698524cdd818babba60c3419607c622a88e122156c5f6d5446"
+    },
+    "b4a-pm-repository": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-pm-repository/SKILL.md",
+      "computedHash": "0cedd7e0dc947fd84c2570f06cf0b1e80e1fde8538b8f30bde88990786d29eca"
+    },
+    "b4a-pm-requiredby": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-pm-requiredby/SKILL.md",
+      "computedHash": "c8dea1cb3793239d019fb6a426f80effb68d1a81d2ed366d20fa8657a8f3f50a"
+    },
+    "b4a-pm-requires": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-pm-requires/SKILL.md",
+      "computedHash": "9580baa9bf82287fbf87405e8556385dc568350b5eb2a8089763f8ac62ac223f"
+    },
+    "b4a-pm-templateregister": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-pm-templateregister/SKILL.md",
+      "computedHash": "bbdea8d65bbbc155a8ca07101d4630a8cdcc39c9e79eb25b54953ceae4661fdc"
+    },
+    "b4a-pm-unused": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-pm-unused/SKILL.md",
+      "computedHash": "0b913c91ea8afd27100af5e1f1e9e827345d8d6b31e24ab20e50779e3333d19e"
+    },
+    "b4a-search": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-search/SKILL.md",
+      "computedHash": "e637aa3695c72bfc3572e98f20f164a52db244c82124160fbaa328a15843bba2"
+    },
+    "b4a-te-breakpointrelease": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-te-breakpointrelease/SKILL.md",
+      "computedHash": "fd22383ce4faeb541413d6f1ce4c4bebd80413a70a5e223c3bd4b5a60314ae3c"
+    },
+    "b4a-te-cancel": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-te-cancel/SKILL.md",
+      "computedHash": "462f44b47e36ece2c56e191fb4ecd62b625c2e557479d40b9eb06f50859bffb8"
+    },
+    "b4a-te-commentadd": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-te-commentadd/SKILL.md",
+      "computedHash": "55d6ab7bec8b53d83989d66fc7b1e04e9e08c94c62b0ec99745e62ff8382c847"
+    },
+    "b4a-te-count": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-te-count/SKILL.md",
+      "computedHash": "333d6ebd5ddf4072779409516d84a6ee16f8fa8d8db5910478c8f4deef9ef95b"
+    },
+    "b4a-te-deactivate": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-te-deactivate/SKILL.md",
+      "computedHash": "b6d59ec78eddad95c4165c1537cf08b0cd9285ccaafcfa4e4a19b9caa1c2f4ec"
+    },
+    "b4a-te-detailread": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-te-detailread/SKILL.md",
+      "computedHash": "8b4f689d5a9a34c1849145b94480489048d18646085b952b4115b8f006b405a2"
+    },
+    "b4a-te-read": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-te-read/SKILL.md",
+      "computedHash": "0f7295d4b1b43e58e78ec7b431a9b962be86eb843e704b006db6c3096e550e14"
+    },
+    "b4a-te-restart": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-te-restart/SKILL.md",
+      "computedHash": "7294f80f61e2c38b35d6d802343bffd05419fd43539215c72e1b867338b431e5"
+    },
+    "b4a-te-scheduletaskreset": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-te-scheduletaskreset/SKILL.md",
+      "computedHash": "c5f2600e38bedcf9b8aa729d99d341639a07f3654e93af0a08d48a292888b184"
+    },
+    "b4a-te-statusmodify": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-te-statusmodify/SKILL.md",
+      "computedHash": "d0d732c97b0512583aa0407bad042d6809a0577892c9e18e56d625e26aac9b8c"
+    },
+    "b4a-te-unblock": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-te-unblock/SKILL.md",
+      "computedHash": "21fc3432233a75ddf91eb2ff0f244749756fd2741ff57aecc4e4cfe3ed3b4ea1"
+    },
+    "b4a-te-workflowcontinue": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-te-workflowcontinue/SKILL.md",
+      "computedHash": "495f908e8907288ef1d8292bf7320614307f2225f07c4014395f3a0b66b174f8"
+    },
+    "b4a-te-workflowmonitoredit": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-te-workflowmonitoredit/SKILL.md",
+      "computedHash": "36eb3516150a11d91f2f80d0303b06597dcb97afcc208b5d42e4045671e034f2"
+    },
+    "b4a-tp-crosscopy": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-tp-crosscopy/SKILL.md",
+      "computedHash": "cee2f7d51dde12d3823ee2c42f3de8115578f81870e80a8e1c8dced79ea3e7c7"
+    },
+    "b4a-tp-export": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-tp-export/SKILL.md",
+      "computedHash": "36a38ef81b8f5e75a7247644b3e34eb6d577e5e6119f7e30ab72e0d20ddf8ebc"
+    },
+    "b4a-tp-import": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-tp-import/SKILL.md",
+      "computedHash": "a95218d3a77a3618184e48c5671d111ccc7da546b4c65779c527ea8825e299f9"
+    },
+    "b4a-tp-markdeprecated": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-tp-markdeprecated/SKILL.md",
+      "computedHash": "e08eb67a6359d3c1f2f864738dbb9c8d954ad3150d5db03aaf1e16503c019266"
+    },
+    "b4a-tp-movetotransportcase": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-tp-movetotransportcase/SKILL.md",
+      "computedHash": "787750c7d42e5df9ec16f24783c0374e002e33e285a193e3672b87d91f69997b"
+    },
+    "b4a-tp-variableexport": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-tp-variableexport/SKILL.md",
+      "computedHash": "342a3498a85d4c0f9aedf4a077de36484f3fc80ede5ac3cc85b539a8c40d6f40"
+    },
+    "b4a-tp-variableimport": {
+      "source": "thomas-kress/b4a-skills",
+      "sourceType": "github",
+      "skillPath": "skills/b4a-tp-variableimport/SKILL.md",
+      "computedHash": "b4ad7616f41fd30b3afb665eb3fac2e1f20bef992ce94189947276fe9e2e7976"
+    }
+  }
+}
