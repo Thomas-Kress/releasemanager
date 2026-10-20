@@ -66,3 +66,88 @@ def list_packages() -> list[dict]:
 def count_packages() -> int:
     with connect() as conn:
         return conn.execute("SELECT COUNT(*) FROM packages").fetchone()[0]
+
+
+# Release status codes: 1 = planned, 2 = active, 3 = closed
+RELEASE_STATUSES = (1, 2, 3)
+
+
+def _ensure_releases(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS releases (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            name        TEXT NOT NULL,
+            description TEXT NOT NULL DEFAULT '',
+            start_date  TEXT,
+            end_date    TEXT,
+            status      INTEGER NOT NULL DEFAULT 1 CHECK (status IN (1, 2, 3))
+        )
+        """
+    )
+    # Earlier versions required both dates; rebuild the table so they are optional.
+    cols = {r["name"]: r for r in conn.execute("PRAGMA table_info(releases)")}
+    if cols["start_date"]["notnull"] or cols["end_date"]["notnull"]:
+        conn.executescript(
+            """
+            ALTER TABLE releases RENAME TO releases_old;
+            CREATE TABLE releases (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                name        TEXT NOT NULL,
+                description TEXT NOT NULL DEFAULT '',
+                start_date  TEXT,
+                end_date    TEXT,
+                status      INTEGER NOT NULL DEFAULT 1 CHECK (status IN (1, 2, 3))
+            );
+            INSERT INTO releases SELECT id, name, description, start_date, end_date, status FROM releases_old;
+            DROP TABLE releases_old;
+            """
+        )
+
+
+def _release_row(r: sqlite3.Row) -> dict:
+    return {
+        "id": r["id"],
+        "name": r["name"],
+        "description": r["description"],
+        "startDate": r["start_date"],
+        "endDate": r["end_date"],
+        "status": r["status"],
+    }
+
+
+def list_releases() -> list[dict]:
+    with connect() as conn:
+        _ensure_releases(conn)
+        rows = conn.execute("SELECT * FROM releases ORDER BY id DESC").fetchall()
+    return [_release_row(r) for r in rows]
+
+
+def create_release(name: str, description: str, start_date: str | None, end_date: str | None) -> dict:
+    with connect() as conn:
+        _ensure_releases(conn)
+        cur = conn.execute(
+            "INSERT INTO releases (name, description, start_date, end_date, status) VALUES (?, ?, ?, ?, 1)",
+            (name, description, start_date, end_date),
+        )
+        row = conn.execute("SELECT * FROM releases WHERE id = ?", (cur.lastrowid,)).fetchone()
+    return _release_row(row)
+
+
+def set_release_status(release_id: int, status: int) -> dict | None:
+    with connect() as conn:
+        _ensure_releases(conn)
+        conn.execute("UPDATE releases SET status = ? WHERE id = ?", (status, release_id))
+        row = conn.execute("SELECT * FROM releases WHERE id = ?", (release_id,)).fetchone()
+    return _release_row(row) if row else None
+
+
+def set_release_dates(release_id: int, start_date: str | None, end_date: str | None) -> dict | None:
+    with connect() as conn:
+        _ensure_releases(conn)
+        conn.execute(
+            "UPDATE releases SET start_date = ?, end_date = ? WHERE id = ?",
+            (start_date, end_date, release_id),
+        )
+        row = conn.execute("SELECT * FROM releases WHERE id = ?", (release_id,)).fetchone()
+    return _release_row(row) if row else None

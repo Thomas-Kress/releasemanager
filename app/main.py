@@ -10,10 +10,11 @@ from __future__ import annotations
 
 import os
 from contextlib import asynccontextmanager
+from datetime import date
 
 from fastapi import FastAPI, HTTPException, Request
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from .b4a_auth import auth_manager
 from .b4a_client import B4AError, run_module
@@ -96,3 +97,73 @@ async def api_b4a_module(req: ModuleRequest, request: Request) -> dict:
     except B4AError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
+
+
+class ReleaseCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    description: str = Field(default="", max_length=2000)
+    start_date: date | None = Field(default=None, alias="startDate")
+    end_date: date | None = Field(default=None, alias="endDate")
+
+    @model_validator(mode="after")
+    def _check_dates(self) -> "ReleaseCreate":
+        if self.start_date and self.end_date and self.end_date < self.start_date:
+            raise ValueError("endDate must not be before startDate")
+        return self
+
+
+class ReleaseDatesUpdate(BaseModel):
+    """Replaces both dates; null clears one."""
+
+    start_date: date | None = Field(default=None, alias="startDate")
+    end_date: date | None = Field(default=None, alias="endDate")
+
+    @model_validator(mode="after")
+    def _check_dates(self) -> "ReleaseDatesUpdate":
+        if self.start_date and self.end_date and self.end_date < self.start_date:
+            raise ValueError("endDate must not be before startDate")
+        return self
+
+
+class ReleaseStatusUpdate(BaseModel):
+    status: int = Field(description="1 = planned, 2 = active, 3 = closed")
+
+
+@app.get("/api/releases")
+def api_releases() -> list[dict]:
+    return db.list_releases()
+
+
+@app.post("/api/releases", status_code=201)
+def api_create_release(req: ReleaseCreate, request: Request) -> dict:
+    _require_local(request)
+    return db.create_release(
+        req.name.strip(),
+        req.description.strip(),
+        req.start_date.isoformat() if req.start_date else None,
+        req.end_date.isoformat() if req.end_date else None,
+    )
+
+
+@app.patch("/api/releases/{release_id}/status")
+def api_set_release_status(release_id: int, req: ReleaseStatusUpdate, request: Request) -> dict:
+    _require_local(request)
+    if req.status not in db.RELEASE_STATUSES:
+        raise HTTPException(status_code=422, detail="status must be 1 (planned), 2 (active) or 3 (closed)")
+    release = db.set_release_status(release_id, req.status)
+    if release is None:
+        raise HTTPException(status_code=404, detail="Release not found")
+    return release
+
+
+@app.patch("/api/releases/{release_id}/dates")
+def api_set_release_dates(release_id: int, req: ReleaseDatesUpdate, request: Request) -> dict:
+    _require_local(request)
+    release = db.set_release_dates(
+        release_id,
+        req.start_date.isoformat() if req.start_date else None,
+        req.end_date.isoformat() if req.end_date else None,
+    )
+    if release is None:
+        raise HTTPException(status_code=404, detail="Release not found")
+    return release

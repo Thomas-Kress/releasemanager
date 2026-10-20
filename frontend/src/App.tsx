@@ -17,6 +17,10 @@ import {
   CircularProgress,
   Container,
   CssBaseline,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
   Paper,
   IconButton,
@@ -24,7 +28,9 @@ import {
   ListItem,
   ListItemIcon,
   ListItemText,
+  MenuItem,
   Popover,
+  Select,
   Stack,
   TextField,
   Table,
@@ -35,9 +41,11 @@ import {
   TableRow,
   ThemeProvider,
   Toolbar,
+  Tooltip,
   Typography,
   createTheme,
 } from '@mui/material'
+import AddIcon from '@mui/icons-material/Add'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import CancelIcon from '@mui/icons-material/Cancel'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
@@ -46,6 +54,7 @@ import InfoIcon from '@mui/icons-material/Info'
 import PersonIcon from '@mui/icons-material/Person'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import Inventory2Icon from '@mui/icons-material/Inventory2'
+import RocketLaunchIcon from '@mui/icons-material/RocketLaunch'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import LoginIcon from '@mui/icons-material/Login'
 import UpdateIcon from '@mui/icons-material/Update'
@@ -67,6 +76,21 @@ interface PackageRecord {
   source: string
   version: string
 }
+
+interface ReleaseRecord {
+  id: number
+  name: string
+  description: string
+  startDate: string | null
+  endDate: string | null
+  status: number
+}
+
+const RELEASE_STATUSES: { value: number; label: string; color: 'info' | 'success' | 'default' }[] = [
+  { value: 1, label: 'Planned', color: 'info' },
+  { value: 2, label: 'Active', color: 'success' },
+  { value: 3, label: 'Closed', color: 'default' },
+]
 
 interface TokenResponse {
   token: string
@@ -141,6 +165,10 @@ function App() {
   const [loginError, setLoginError] = useState<string | null>(null)
   const [isLoggingIn, setIsLoggingIn] = useState(false)
   const [packages, setPackages] = useState<PackageRecord[]>([])
+  const [releases, setReleases] = useState<ReleaseRecord[]>([])
+  const [releaseDialogOpen, setReleaseDialogOpen] = useState(false)
+  const [releaseForm, setReleaseForm] = useState({ name: '', description: '', startDate: '', endDate: '' })
+  const [releaseError, setReleaseError] = useState<string | null>(null)
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null)
 
   const fetchStatus = useCallback(async () => {
@@ -171,15 +199,83 @@ function App() {
     }
   }, [])
 
+  const fetchReleases = useCallback(async () => {
+    try {
+      const res = await fetch('/api/releases', { cache: 'no-store' })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      setReleases(await res.json())
+    } catch {
+      // keep the last known list
+    }
+  }, [])
+
+  const handleCreateRelease = async (event: FormEvent) => {
+    event.preventDefault()
+    setReleaseError(null)
+    try {
+      const res = await fetch('/api/releases', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...releaseForm,
+          startDate: releaseForm.startDate || null,
+          endDate: releaseForm.endDate || null,
+        }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        const detail = body?.detail
+        throw new Error(
+          typeof detail === 'string' ? detail : Array.isArray(detail) ? detail[0]?.msg : `HTTP ${res.status}`,
+        )
+      }
+      setReleaseDialogOpen(false)
+      setReleaseForm({ name: '', description: '', startDate: '', endDate: '' })
+      await fetchReleases()
+    } catch (err) {
+      setReleaseError(err instanceof Error ? err.message : 'Failed to create release')
+    }
+  }
+
+  const handleReleaseDates = async (r: ReleaseRecord, dates: Partial<Pick<ReleaseRecord, 'startDate' | 'endDate'>>) => {
+    const next = { startDate: r.startDate, endDate: r.endDate, ...dates }
+    setReleases((prev) => prev.map((x) => (x.id === r.id ? { ...x, ...next } : x)))
+    try {
+      await fetch(`/api/releases/${r.id}/dates`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(next),
+      })
+    } finally {
+      await fetchReleases()
+    }
+  }
+
+  const handleReleaseStatus = async (id: number, status: number) => {
+    // optimistic update; the refetch restores the real value if the call fails
+    setReleases((prev) => prev.map((r) => (r.id === id ? { ...r, status } : r)))
+    try {
+      await fetch(`/api/releases/${id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      })
+    } finally {
+      await fetchReleases()
+    }
+  }
+
   useEffect(() => {
     fetchStatus()
     fetchPackages()
+    fetchReleases()
     const id = setInterval(() => {
       fetchStatus()
       fetchPackages()
+      fetchReleases()
     }, POLL_INTERVAL_MS)
     return () => clearInterval(id)
-  }, [fetchStatus, fetchPackages])
+  }, [fetchStatus, fetchPackages, fetchReleases])
 
   const handleRetry = async () => {
     setIsRefreshing(true)
@@ -411,8 +507,143 @@ function App() {
               </TableBody>
             </Table>
           </TableContainer>
+
+          <Stack direction="row" spacing={1} sx={{ mt: 5, mb: 2, alignItems: 'center' }}>
+            <RocketLaunchIcon color="primary" />
+            <Typography variant="h5" component="h2">
+              Releases
+            </Typography>
+            <Chip size="small" label={releases.length} />
+            <Tooltip title="New release">
+              <IconButton
+                color="primary"
+                aria-label="add release"
+                onClick={() => {
+                  setReleaseError(null)
+                  setReleaseDialogOpen(true)
+                }}
+              >
+                <AddIcon />
+              </IconButton>
+            </Tooltip>
+          </Stack>
+          <TableContainer component={Paper}>
+            <Table size="small" aria-label="releases">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Name</TableCell>
+                  <TableCell>Description</TableCell>
+                  <TableCell>Start</TableCell>
+                  <TableCell>End</TableCell>
+                  <TableCell>Status</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {releases.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={5} align="center" sx={{ color: 'text.secondary' }}>
+                      No releases yet.
+                    </TableCell>
+                  </TableRow>
+                )}
+                {releases.map((r) => (
+                  <TableRow key={r.id} hover>
+                    <TableCell>{r.name}</TableCell>
+                    <TableCell>{r.description}</TableCell>
+                    <TableCell>
+                      <TextField
+                        type="date"
+                        size="small"
+                        value={r.startDate ?? ''}
+                        onChange={(e) => handleReleaseDates(r, { startDate: e.target.value || null })}
+                        slotProps={{ htmlInput: { 'aria-label': `start date of ${r.name}`, max: r.endDate ?? undefined } }}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <TextField
+                        type="date"
+                        size="small"
+                        value={r.endDate ?? ''}
+                        onChange={(e) => handleReleaseDates(r, { endDate: e.target.value || null })}
+                        slotProps={{ htmlInput: { 'aria-label': `end date of ${r.name}`, min: r.startDate ?? undefined } }}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Select
+                        size="small"
+                        value={r.status}
+                        onChange={(e) => handleReleaseStatus(r.id, Number(e.target.value))}
+                        inputProps={{ 'aria-label': `status of ${r.name}` }}
+                        sx={{ minWidth: 130 }}
+                      >
+                        {RELEASE_STATUSES.map((st) => (
+                          <MenuItem key={st.value} value={st.value}>
+                            <Chip size="small" color={st.color} label={st.label} />
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
         </Container>
       </Box>
+
+      <Dialog
+        open={releaseDialogOpen}
+        onClose={() => setReleaseDialogOpen(false)}
+        fullWidth
+        maxWidth="sm"
+        component="form"
+        onSubmit={handleCreateRelease}
+      >
+        <DialogTitle>New release</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            {releaseError && <Alert severity="error">{releaseError}</Alert>}
+            <TextField
+              label="Name"
+              required
+              autoFocus
+              value={releaseForm.name}
+              onChange={(e) => setReleaseForm({ ...releaseForm, name: e.target.value })}
+            />
+            <TextField
+              label="Description"
+              multiline
+              minRows={2}
+              value={releaseForm.description}
+              onChange={(e) => setReleaseForm({ ...releaseForm, description: e.target.value })}
+            />
+            <Stack direction="row" spacing={2}>
+              <TextField
+                label="Start date"
+                type="date"
+                fullWidth
+                slotProps={{ inputLabel: { shrink: true } }}
+                value={releaseForm.startDate}
+                onChange={(e) => setReleaseForm({ ...releaseForm, startDate: e.target.value })}
+              />
+              <TextField
+                label="End date"
+                type="date"
+                fullWidth
+                slotProps={{ inputLabel: { shrink: true } }}
+                value={releaseForm.endDate}
+                onChange={(e) => setReleaseForm({ ...releaseForm, endDate: e.target.value })}
+              />
+            </Stack>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setReleaseDialogOpen(false)}>Cancel</Button>
+          <Button type="submit" variant="contained">
+            Create
+          </Button>
+        </DialogActions>
+      </Dialog>
     </ThemeProvider>
   )
 }
