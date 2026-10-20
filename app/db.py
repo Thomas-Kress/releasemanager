@@ -293,8 +293,16 @@ def list_connections() -> list[dict]:
 
 
 def create_connection(environment: str, name: str, description: str) -> dict:
+    """Raises ValueError if a connection with this name exists in any environment."""
     with connect() as conn:
         _ensure_connections(conn)
+        existing = conn.execute(
+            "SELECT environment FROM connections WHERE lower(name) = lower(?)", (name,)
+        ).fetchone()
+        if existing:
+            raise ValueError(
+                f"Connection '{name}' is already defined in {existing['environment'].capitalize()}."
+            )
         cur = conn.execute(
             "INSERT INTO connections (environment, name, description) VALUES (?, ?, ?)",
             (environment, name, description),

@@ -210,7 +210,10 @@ def api_connections() -> list[dict]:
 @app.post("/api/connections", status_code=201)
 def api_create_connection(req: ConnectionCreate, request: Request) -> dict:
     _require_local(request)
-    return db.create_connection(req.environment, req.name.strip(), req.description.strip())
+    try:
+        return db.create_connection(req.environment, req.name.strip(), req.description.strip())
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 class ReleaseDescriptionUpdate(BaseModel):

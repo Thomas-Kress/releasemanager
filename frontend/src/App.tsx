@@ -9,6 +9,7 @@ import {
 } from 'react'
 import {
   Alert,
+  AlertTitle,
   AppBar,
   Avatar,
   Badge,
@@ -478,7 +479,17 @@ function App({ clerkEnabled = false }: { clerkEnabled?: boolean }) {
 
   const unassignedPackages = packages.filter((p) => p.releaseId === null)
   const search = packageSearch.trim().toLowerCase()
-  const visiblePackages = unassignedPackages.filter(
+  // Only packages whose source matches a defined Development connection can be planned.
+  const developmentSources = new Set(
+    connections.filter((c) => c.environment === 'development').map((c) => c.name.trim().toLowerCase()),
+  )
+  const developmentPackages = unassignedPackages.filter((p) => developmentSources.has(p.source.trim().toLowerCase()))
+  // Packages the webhook received from connections that are not a defined Development connection.
+  const otherSourceCounts = packages
+    .filter((p) => !developmentSources.has(p.source.trim().toLowerCase()))
+    .reduce<Record<string, number>>((acc, p) => ({ ...acc, [p.source]: (acc[p.source] ?? 0) + 1 }), {})
+  const otherSourceTotal = Object.values(otherSourceCounts).reduce((a, b) => a + b, 0)
+  const visiblePackages = developmentPackages.filter(
     (p) => !search || `${p.packageName} ${p.source} ${p.version}`.toLowerCase().includes(search),
   )
   const visibleReleases = releases.filter((r) => releaseFilter === 'all' || r.status === releaseFilter)
@@ -810,6 +821,20 @@ function App({ clerkEnabled = false }: { clerkEnabled?: boolean }) {
                 Overview of your packages, releases and environments.
               </Typography>
 
+              {otherSourceTotal > 0 && (
+                <Alert severity="info" sx={{ mb: 3 }}>
+                  <AlertTitle>Packages from non-Development connections</AlertTitle>
+                  {otherSourceTotal} {otherSourceTotal === 1 ? 'package was' : 'packages were'} sent via the webhook
+                  from connections that are not a defined Development connection. They are counted here but are not
+                  offered for planning on the Packages and Releases page.
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
+                    {Object.entries(otherSourceCounts).map(([source, count]) => (
+                      <Chip key={source} size="small" variant="outlined" label={`${source} (${count})`} />
+                    ))}
+                  </Box>
+                </Alert>
+              )}
+
               <Box
                 sx={{
                   display: 'grid',
@@ -994,7 +1019,7 @@ function App({ clerkEnabled = false }: { clerkEnabled?: boolean }) {
                   <Typography variant="h6" component="h2" sx={{ flexGrow: 1 }}>
                     Packages
                   </Typography>
-                  <Chip size="small" label={unassignedPackages.length} />
+                  <Chip size="small" label={developmentPackages.length} />
                 </Stack>
                 <TextField
                   fullWidth
@@ -1016,9 +1041,11 @@ function App({ clerkEnabled = false }: { clerkEnabled?: boolean }) {
                 <Stack spacing={1} sx={{ maxHeight: { md: 'calc(100vh - 320px)' }, overflowY: 'auto' }}>
                   {visiblePackages.length === 0 && (
                     <Alert severity="info" variant="outlined">
-                      {unassignedPackages.length === 0
-                        ? 'No unassigned packages. New packages arrive through the webhook.'
-                        : 'No packages match your search.'}
+                      {developmentSources.size === 0
+                        ? 'No Development connection defined. Add one on the Environments page to see its packages.'
+                        : developmentPackages.length === 0
+                          ? 'No unassigned packages from a Development connection.'
+                          : 'No packages match your search.'}
                     </Alert>
                   )}
                   {visiblePackages.map((p) => (
