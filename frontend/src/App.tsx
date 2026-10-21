@@ -2,7 +2,6 @@ import {
   useCallback,
   useEffect,
   useState,
-  type DragEvent,
   type FormEvent,
   type MouseEvent,
   type ReactNode,
@@ -42,6 +41,12 @@ import {
   Select,
   Snackbar,
   Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
   TextField,
   ThemeProvider,
   ToggleButton,
@@ -58,13 +63,13 @@ import ScienceIcon from '@mui/icons-material/Science'
 import VerifiedIcon from '@mui/icons-material/Verified'
 import DashboardIcon from '@mui/icons-material/Dashboard'
 import DnsIcon from '@mui/icons-material/Dns'
-import DragIndicatorIcon from '@mui/icons-material/DragIndicator'
 import LockIcon from '@mui/icons-material/Lock'
 import SearchIcon from '@mui/icons-material/Search'
 import HistoryIcon from '@mui/icons-material/History'
 import CheckIcon from '@mui/icons-material/Check'
 import CloseIcon from '@mui/icons-material/Close'
 import EditIcon from '@mui/icons-material/Edit'
+import DeleteIcon from '@mui/icons-material/Delete'
 import AddIcon from '@mui/icons-material/Add'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import CancelIcon from '@mui/icons-material/Cancel'
@@ -147,7 +152,8 @@ const POLL_INTERVAL_MS = 5000
 
 const SIDEBAR_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
-  { id: 'releases', label: 'Packages and Releases', icon: <Inventory2Icon /> },
+  { id: 'packages', label: 'Packages', icon: <Inventory2Icon /> },
+  { id: 'releases', label: 'Releases', icon: <RocketLaunchIcon /> },
   { id: 'environments', label: 'Environments', icon: <DnsIcon /> },
 ] as const
 
@@ -236,8 +242,8 @@ function App({ clerkEnabled = false }: { clerkEnabled?: boolean }) {
   const [releases, setReleases] = useState<ReleaseRecord[]>([])
   const [releaseDialogOpen, setReleaseDialogOpen] = useState(false)
   const [releaseForm, setReleaseForm] = useState({ name: '', description: '', startDate: '', endDate: '' })
-  const [dragOverRelease, setDragOverRelease] = useState<number | 'packages' | null>(null)
   const [moveError, setMoveError] = useState<string | null>(null)
+  const [packageToDelete, setPackageToDelete] = useState<PackageRecord | null>(null)
   const [releaseError, setReleaseError] = useState<string | null>(null)
   // Below the md breakpoint the sidebar shows icons only, so they need tooltips.
   const compactSidebar = useMediaQuery(theme.breakpoints.down('md'))
@@ -246,6 +252,7 @@ function App({ clerkEnabled = false }: { clerkEnabled?: boolean }) {
   const [connectionForm, setConnectionForm] = useState({ name: '', description: '' })
   const [connectionError, setConnectionError] = useState<string | null>(null)
   const [editingDescription, setEditingDescription] = useState<{ id: number; text: string } | null>(null)
+  const [editingConnection, setEditingConnection] = useState<{ id: number; text: string } | null>(null)
   const [detailReleaseId, setDetailReleaseId] = useState<number | null>(null)
   const [releaseLog, setReleaseLog] = useState<ReleaseLogEntry[]>([])
   const [view, setView] = useState<View>('dashboard')
@@ -353,8 +360,23 @@ function App({ clerkEnabled = false }: { clerkEnabled?: boolean }) {
     }
   }
 
-  // Drag & drop: a package row/chip carries its id; dropping on a release row
-  // assigns it, dropping on the Packages table unassigns it. Closed releases refuse both.
+  // Assigns a package to a release (or unassigns it with null). Closed releases refuse both.
+  const deletePackage = async (pkg: PackageRecord) => {
+    setMoveError(null)
+    setPackageToDelete(null)
+    try {
+      const res = await fetch(`/api/packages/${pkg.id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        throw new Error(typeof body?.detail === 'string' ? body.detail : `HTTP ${res.status}`)
+      }
+    } catch (err) {
+      setMoveError(err instanceof Error ? err.message : 'Failed to delete package')
+    } finally {
+      await fetchPackages()
+    }
+  }
+
   const movePackage = async (packageId: number, releaseId: number | null) => {
     setMoveError(null)
     try {
@@ -373,28 +395,6 @@ function App({ clerkEnabled = false }: { clerkEnabled?: boolean }) {
       await fetchPackages()
     }
   }
-
-  const dragPackage = (id: number) => (e: DragEvent) => {
-    e.dataTransfer.setData('text/package-id', String(id))
-    e.dataTransfer.effectAllowed = 'move'
-  }
-
-  const dropTarget = (key: number | 'packages', releaseId: number | null, enabled: boolean) => ({
-    onDragOver: (e: DragEvent) => {
-      if (!enabled || !e.dataTransfer.types.includes('text/package-id')) return
-      e.preventDefault()
-      e.dataTransfer.dropEffect = 'move'
-      setDragOverRelease(key)
-    },
-    onDragLeave: () => setDragOverRelease((cur) => (cur === key ? null : cur)),
-    onDrop: (e: DragEvent) => {
-      setDragOverRelease(null)
-      const id = Number(e.dataTransfer.getData('text/package-id'))
-      if (!enabled || !id) return
-      e.preventDefault()
-      void movePackage(id, releaseId)
-    },
-  })
 
   const handleReleaseDates = async (r: ReleaseRecord, dates: Partial<Pick<ReleaseRecord, 'startDate' | 'endDate'>>) => {
     const next = { startDate: r.startDate, endDate: r.endDate, ...dates }
@@ -434,6 +434,19 @@ function App({ clerkEnabled = false }: { clerkEnabled?: boolean }) {
     const target = e.target as HTMLElement
     if (target.closest('button, input, textarea, a, [role="combobox"], [role="listbox"], .MuiChip-root, .MuiSelect-root')) return
     setDetailReleaseId(id)
+  }
+
+  const handleConnectionDescription = async (id: number, description: string) => {
+    setConnections((prev) => prev.map((c) => (c.id === id ? { ...c, description: description.trim() } : c)))
+    try {
+      await fetch(`/api/connections/${id}/description`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ description }),
+      })
+    } finally {
+      await fetchConnections()
+    }
   }
 
   const handleReleaseDescription = async (id: number, description: string) => {
@@ -483,13 +496,12 @@ function App({ clerkEnabled = false }: { clerkEnabled?: boolean }) {
   const developmentSources = new Set(
     connections.filter((c) => c.environment === 'development').map((c) => c.name.trim().toLowerCase()),
   )
-  const developmentPackages = unassignedPackages.filter((p) => developmentSources.has(p.source.trim().toLowerCase()))
   // Packages the webhook received from connections that are not a defined Development connection.
   const otherSourceCounts = packages
     .filter((p) => !developmentSources.has(p.source.trim().toLowerCase()))
     .reduce<Record<string, number>>((acc, p) => ({ ...acc, [p.source]: (acc[p.source] ?? 0) + 1 }), {})
   const otherSourceTotal = Object.values(otherSourceCounts).reduce((a, b) => a + b, 0)
-  const visiblePackages = developmentPackages.filter(
+  const visiblePackages = packages.filter(
     (p) => !search || `${p.packageName} ${p.source} ${p.version}`.toLowerCase().includes(search),
   )
   const visibleReleases = releases.filter((r) => releaseFilter === 'all' || r.status === releaseFilter)
@@ -797,10 +809,67 @@ function App({ clerkEnabled = false }: { clerkEnabled?: boolean }) {
                                   <Typography variant="subtitle2" noWrap>
                                     {c.name}
                                   </Typography>
-                                  <Typography variant="caption" color="text.secondary" noWrap component="div">
-                                    {c.description || 'No description'}
-                                  </Typography>
+                                  {editingConnection?.id === c.id ? (
+                                    <TextField
+                                      autoFocus
+                                      fullWidth
+                                      multiline
+                                      size="small"
+                                      label="Description"
+                                      sx={{ mt: 0.5 }}
+                                      value={editingConnection.text}
+                                      onChange={(e) => setEditingConnection({ id: c.id, text: e.target.value })}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Escape') setEditingConnection(null)
+                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                          e.preventDefault()
+                                          void handleConnectionDescription(c.id, editingConnection.text)
+                                          setEditingConnection(null)
+                                        }
+                                      }}
+                                    />
+                                  ) : (
+                                    <Typography variant="caption" color="text.secondary" noWrap component="div">
+                                      {c.description || 'No description'}
+                                    </Typography>
+                                  )}
                                 </Box>
+                                {editingConnection?.id === c.id ? (
+                                  <>
+                                    <Tooltip title="Save description">
+                                      <IconButton
+                                        size="small"
+                                        color="primary"
+                                        aria-label={`save description of ${c.name}`}
+                                        onClick={() => {
+                                          void handleConnectionDescription(c.id, editingConnection.text)
+                                          setEditingConnection(null)
+                                        }}
+                                      >
+                                        <CheckIcon fontSize="small" />
+                                      </IconButton>
+                                    </Tooltip>
+                                    <Tooltip title="Cancel">
+                                      <IconButton
+                                        size="small"
+                                        aria-label="cancel editing description"
+                                        onClick={() => setEditingConnection(null)}
+                                      >
+                                        <CloseIcon fontSize="small" />
+                                      </IconButton>
+                                    </Tooltip>
+                                  </>
+                                ) : (
+                                  <Tooltip title="Edit description">
+                                    <IconButton
+                                      size="small"
+                                      aria-label={`edit description of ${c.name}`}
+                                      onClick={() => setEditingConnection({ id: c.id, text: c.description })}
+                                    >
+                                      <EditIcon fontSize="small" />
+                                    </IconButton>
+                                  </Tooltip>
+                                )}
                               </Paper>
                             ))}
                           </Box>
@@ -826,7 +895,7 @@ function App({ clerkEnabled = false }: { clerkEnabled?: boolean }) {
                   <AlertTitle>Packages from non-Development connections</AlertTitle>
                   {otherSourceTotal} {otherSourceTotal === 1 ? 'package was' : 'packages were'} sent via the webhook
                   from connections that are not a defined Development connection. They are counted here but are not
-                  offered for planning on the Packages and Releases page.
+                  assignable to a release on the Packages page.
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
                     {Object.entries(otherSourceCounts).map(([source, count]) => (
                       <Chip key={source} size="small" variant="outlined" label={`${source} (${count})`} />
@@ -987,104 +1056,152 @@ function App({ clerkEnabled = false }: { clerkEnabled?: boolean }) {
               </Card>
             </>
           )}
+          {view === 'packages' && (
+            <>
+              <Typography variant="h4" component="h1" sx={{ fontWeight: 600 }}>
+                Packages
+              </Typography>
+              <Typography color="text.secondary" sx={{ mb: 3 }}>
+                All packages received via the webhook, from every source. Packages from a Development connection can be
+                assigned to a release that is not closed.
+              </Typography>
+
+              <Card>
+                <CardContent>
+                  <Stack direction="row" spacing={1} sx={{ mb: 2, alignItems: 'center' }}>
+                    <Inventory2Icon color="primary" />
+                    <Typography variant="h6" component="h2" sx={{ flexGrow: 1 }}>
+                      All packages
+                    </Typography>
+                    <Chip size="small" label={packages.length} />
+                  </Stack>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    placeholder="Search packages"
+                    value={packageSearch}
+                    onChange={(e) => setPackageSearch(e.target.value)}
+                    slotProps={{
+                      input: {
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <SearchIcon fontSize="small" />
+                          </InputAdornment>
+                        ),
+                      },
+                    }}
+                    sx={{ mb: 2 }}
+                  />
+                  {visiblePackages.length === 0 ? (
+                    <Alert severity="info" variant="outlined">
+                      {packages.length === 0 ? 'No packages received yet.' : 'No packages match your search.'}
+                    </Alert>
+                  ) : (
+                    <TableContainer>
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow>
+                            <TableCell>Package</TableCell>
+                            <TableCell>Version</TableCell>
+                            <TableCell>Source</TableCell>
+                            <TableCell>Received</TableCell>
+                            <TableCell sx={{ minWidth: 200 }}>Release</TableCell>
+                            <TableCell align="right" />
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {visiblePackages.map((p) => {
+                            const isDevelopment = developmentSources.has(p.source.trim().toLowerCase())
+                            const current = releases.find((r) => r.id === p.releaseId)
+                            const locked = current?.status === 3
+                            return (
+                              <TableRow key={p.id} hover>
+                                <TableCell sx={{ fontWeight: 500 }}>{p.packageName}</TableCell>
+                                <TableCell>
+                                  <Chip size="small" variant="outlined" label={p.version} />
+                                </TableCell>
+                                <TableCell>
+                                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                                    <span>{p.source}</span>
+                                    <Tooltip
+                                      title={
+                                        isDevelopment
+                                          ? 'From a defined Development connection'
+                                          : 'Not from a defined Development connection: cannot be assigned to a release'
+                                      }
+                                    >
+                                      <Chip
+                                        size="small"
+                                        color={isDevelopment ? 'success' : 'default'}
+                                        variant={isDevelopment ? 'filled' : 'outlined'}
+                                        label={isDevelopment ? 'Development' : 'Other'}
+                                      />
+                                    </Tooltip>
+                                  </Stack>
+                                </TableCell>
+                                <TableCell>{formatDateTime(p.receivedAt)}</TableCell>
+                                <TableCell>
+                                  <Select
+                                    size="small"
+                                    fullWidth
+                                    displayEmpty
+                                    value={p.releaseId ?? ''}
+                                    disabled={locked || (!isDevelopment && p.releaseId === null)}
+                                    onChange={(e) => void movePackage(p.id, e.target.value ? Number(e.target.value) : null)}
+                                    inputProps={{ 'aria-label': `release of ${p.packageName} ${p.version}` }}
+                                  >
+                                    <MenuItem value="">
+                                      <em>Unassigned</em>
+                                    </MenuItem>
+                                    {releases
+                                      .filter((r) => r.status !== 3 || r.id === p.releaseId)
+                                      .map((r) => (
+                                        <MenuItem key={r.id} value={r.id}>
+                                          {r.name}
+                                        </MenuItem>
+                                      ))}
+                                  </Select>
+                                </TableCell>
+                                <TableCell align="right">
+                                  <Tooltip title={current ? 'Assigned to a release: unassign it first' : 'Delete package'}>
+                                    <span>
+                                      <IconButton
+                                        size="small"
+                                        color="error"
+                                        disabled={p.releaseId !== null}
+                                        aria-label={`delete ${p.packageName} ${p.version}`}
+                                        onClick={() => setPackageToDelete(p)}
+                                      >
+                                        <DeleteIcon fontSize="small" />
+                                      </IconButton>
+                                    </span>
+                                  </Tooltip>
+                                </TableCell>
+                              </TableRow>
+                            )
+                          })}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  )}
+                </CardContent>
+              </Card>
+            </>
+          )}
           {view === 'releases' && (
             <>
               <Typography variant="h4" component="h1" sx={{ fontWeight: 600 }}>
-                Packages and Releases
+                Releases
               </Typography>
               <Typography color="text.secondary" sx={{ mb: 3 }}>
-                Drag a package from the left onto a release to plan it. Closed releases are locked.
+                Plan and track releases. Click a release for its details and activity log; assign packages on the
+                Packages page. Closed releases are locked.
               </Typography>
 
-          <Box
-            sx={{
-              display: 'grid',
-              gap: 3,
-              alignItems: 'start',
-              gridTemplateColumns: { xs: '1fr', md: 'minmax(320px, 4fr) 8fr' },
-            }}
-          >
-            {/* Packages */}
-            <Card
-              {...dropTarget('packages', null, true)}
-              sx={{
-                position: { md: 'sticky' },
-                top: { md: 80 },
-                ...(dragOverRelease === 'packages' && { outline: '2px dashed', outlineColor: 'primary.main' }),
-              }}
-            >
-              <CardContent>
-                <Stack direction="row" spacing={1} sx={{ mb: 2, alignItems: 'center' }}>
-                  <Inventory2Icon color="primary" />
-                  <Typography variant="h6" component="h2" sx={{ flexGrow: 1 }}>
-                    Packages
-                  </Typography>
-                  <Chip size="small" label={developmentPackages.length} />
-                </Stack>
-                <TextField
-                  fullWidth
-                  size="small"
-                  placeholder="Search packages"
-                  value={packageSearch}
-                  onChange={(e) => setPackageSearch(e.target.value)}
-                  slotProps={{
-                    input: {
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <SearchIcon fontSize="small" />
-                        </InputAdornment>
-                      ),
-                    },
-                  }}
-                  sx={{ mb: 2 }}
-                />
-                <Stack spacing={1} sx={{ maxHeight: { md: 'calc(100vh - 320px)' }, overflowY: 'auto' }}>
-                  {visiblePackages.length === 0 && (
-                    <Alert severity="info" variant="outlined">
-                      {developmentSources.size === 0
-                        ? 'No Development connection defined. Add one on the Environments page to see its packages.'
-                        : developmentPackages.length === 0
-                          ? 'No unassigned packages from a Development connection.'
-                          : 'No packages match your search.'}
-                    </Alert>
-                  )}
-                  {visiblePackages.map((p) => (
-                    <Paper
-                      key={p.id}
-                      variant="outlined"
-                      draggable
-                      onDragStart={dragPackage(p.id)}
-                      sx={{
-                        p: 1.5,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 1,
-                        cursor: 'grab',
-                        '&:hover': { borderColor: 'primary.main', bgcolor: 'action.hover' },
-                      }}
-                    >
-                      <DragIndicatorIcon fontSize="small" color="action" />
-                      <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                        <Typography variant="subtitle2" noWrap>
-                          {p.packageName}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary" noWrap component="div">
-                          {p.source} · {formatDateTime(p.receivedAt)}
-                        </Typography>
-                      </Box>
-                      <Chip size="small" variant="outlined" label={p.version} />
-                    </Paper>
-                  ))}
-                </Stack>
-              </CardContent>
-            </Card>
-
-            {/* Releases */}
-            <Box>
               <Stack direction="row" spacing={1} sx={{ mb: 2, alignItems: 'center', flexWrap: 'wrap' }} useFlexGap>
                 <RocketLaunchIcon color="primary" />
                 <Typography variant="h6" component="h2" sx={{ flexGrow: 1 }}>
-                  Releases
+                  All releases
                 </Typography>
                 <ToggleButtonGroup
                   size="small"
@@ -1124,7 +1241,7 @@ function App({ clerkEnabled = false }: { clerkEnabled?: boolean }) {
                 sx={{
                   display: 'grid',
                   gap: 2,
-                  gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, 1fr)' },
+                  gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, 1fr)', xl: 'repeat(3, 1fr)' },
                 }}
               >
                 {visibleReleases.map((r) => {
@@ -1135,18 +1252,12 @@ function App({ clerkEnabled = false }: { clerkEnabled?: boolean }) {
                   return (
                     <Card
                       key={r.id}
-                      {...dropTarget(r.id, r.id, open)}
                       onClick={(e) => openReleaseDetails(e, r.id)}
                       sx={{
                         cursor: 'pointer',
                         borderTop: 4,
                         borderTopColor: r.status === 2 ? 'success.main' : r.status === 1 ? 'info.main' : 'grey.400',
                         opacity: open ? 1 : 0.85,
-                        ...(dragOverRelease === r.id && {
-                          outline: '2px dashed',
-                          outlineColor: 'primary.main',
-                          bgcolor: 'action.hover',
-                        }),
                       }}
                     >
                       <CardContent>
@@ -1280,7 +1391,7 @@ function App({ clerkEnabled = false }: { clerkEnabled?: boolean }) {
                         >
                           {inRelease.length === 0 && (
                             <Typography variant="body2" color="text.disabled">
-                              {open ? 'Drop packages here' : 'No packages'}
+                              {open ? 'No packages. Assign them on the Packages page.' : 'No packages'}
                             </Typography>
                           )}
                           {inRelease.map((p) => (
@@ -1290,10 +1401,7 @@ function App({ clerkEnabled = false }: { clerkEnabled?: boolean }) {
                               variant="outlined"
                               label={`${p.packageName} ${p.version}`}
                               title={`Source: ${p.source}`}
-                              draggable={open}
-                              onDragStart={dragPackage(p.id)}
                               onDelete={open ? () => void movePackage(p.id, null) : undefined}
-                              sx={open ? { cursor: 'grab' } : undefined}
                             />
                           ))}
                         </Box>
@@ -1302,14 +1410,28 @@ function App({ clerkEnabled = false }: { clerkEnabled?: boolean }) {
                   )
                 })}
               </Box>
-            </Box>
-          </Box>
             </>
           )}
         </Container>
       </Box>
       </Box>
       </Box>
+
+      <Dialog open={packageToDelete !== null} onClose={() => setPackageToDelete(null)}>
+        <DialogTitle>Delete package?</DialogTitle>
+        <DialogContent>
+          <Typography>
+            {packageToDelete?.packageName} {packageToDelete?.version} ({packageToDelete?.source}) will be permanently
+            deleted. This cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPackageToDelete(null)}>Cancel</Button>
+          <Button color="error" variant="contained" onClick={() => packageToDelete && void deletePackage(packageToDelete)}>
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Snackbar
         open={Boolean(moveError)}

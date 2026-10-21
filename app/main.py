@@ -144,6 +144,18 @@ class PackageRelease(BaseModel):
     release_id: int | None = Field(alias="releaseId")
 
 
+@app.delete("/api/packages/{package_id}", status_code=204)
+def api_delete_package(package_id: int, request: Request) -> None:
+    """Deletes a package. Packages assigned to a release cannot be deleted."""
+    _require_local(request)
+    try:
+        db.delete_package(package_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
 @app.patch("/api/packages/{package_id}/release")
 def api_set_package_release(package_id: int, req: PackageRelease, request: Request) -> dict:
     """Moves a package into a release (null = back to unassigned). Closed releases are locked."""
@@ -214,6 +226,21 @@ def api_create_connection(req: ConnectionCreate, request: Request) -> dict:
         return db.create_connection(req.environment, req.name.strip(), req.description.strip())
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+class ConnectionDescriptionUpdate(BaseModel):
+    description: str = Field(max_length=2000)
+
+
+@app.patch("/api/connections/{connection_id}/description")
+def api_set_connection_description(
+    connection_id: int, req: ConnectionDescriptionUpdate, request: Request
+) -> dict:
+    _require_local(request)
+    connection = db.set_connection_description(connection_id, req.description.strip())
+    if connection is None:
+        raise HTTPException(status_code=404, detail="Connection not found")
+    return connection
 
 
 class ReleaseDescriptionUpdate(BaseModel):

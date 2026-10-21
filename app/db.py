@@ -225,6 +225,23 @@ def set_release_dates(release_id: int, start_date: str | None, end_date: str | N
     return _release_row(row) if row else None
 
 
+def delete_package(package_id: int) -> None:
+    """Deletes a package. Raises LookupError if it does not exist and ValueError if it
+    is assigned to a release (it has to be unassigned first)."""
+    with connect() as conn:
+        _ensure_releases(conn)
+        pkg = conn.execute(
+            "SELECT release_id, package_name, version, source FROM packages WHERE id = ?", (package_id,)
+        ).fetchone()
+        if pkg is None:
+            raise LookupError("Package not found")
+        if pkg["release_id"] is not None:
+            rel = conn.execute("SELECT name FROM releases WHERE id = ?", (pkg["release_id"],)).fetchone()
+            name = f" '{rel['name']}'" if rel else ""
+            raise ValueError(f"Package is assigned to release{name}; remove it from the release first")
+        conn.execute("DELETE FROM packages WHERE id = ?", (package_id,))
+
+
 def set_package_release(package_id: int, release_id: int | None) -> dict:
     """Moves a package into a release (or back to unassigned with None).
 
@@ -309,6 +326,14 @@ def create_connection(environment: str, name: str, description: str) -> dict:
         )
         row = conn.execute("SELECT * FROM connections WHERE id = ?", (cur.lastrowid,)).fetchone()
     return _connection_row(row)
+
+
+def set_connection_description(connection_id: int, description: str) -> dict | None:
+    with connect() as conn:
+        _ensure_connections(conn)
+        conn.execute("UPDATE connections SET description = ? WHERE id = ?", (description, connection_id))
+        row = conn.execute("SELECT * FROM connections WHERE id = ?", (connection_id,)).fetchone()
+    return _connection_row(row) if row else None
 
 
 def set_release_description(release_id: int, description: str) -> dict | None:

@@ -5,7 +5,9 @@ import App from './App.tsx'
 
 // Clerk sign-in is only available when a publishable key is configured
 // (frontend/.env.local: VITE_CLERK_PUBLISHABLE_KEY=pk_...).
-const clerkKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined
+// Switch in the root .env: VITE_CLERK_ACTIVE=true enables the sign-in (default: off).
+const CLERK_ACTIVE = String(import.meta.env.VITE_CLERK_ACTIVE ?? 'false').trim().toLowerCase() === 'true'
+const clerkKey = CLERK_ACTIVE ? (import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined) : undefined
 
 const app = <App clerkEnabled={Boolean(clerkKey)} />
 
