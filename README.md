@@ -77,7 +77,7 @@ curl -X POST http://localhost:8080/webhook/packages \
 
 - **Environments:** define connections (a unique name and an optional description) under Development, Test or Production. A name can only be defined once across all sections.
 - **Packages:** shows every received package, whatever its source. Packages from a defined Development connection can be assigned to a release that is not closed. Packages that are not assigned to a release can be deleted.
-- **Releases:** create releases (name required; description and dates optional) with the status Planned, Active or Closed. Moving a release from Planned to Active sets the start date to today if none is set. Click a release for its details and the full activity log. Closed releases lock their packages, dates and status rules, but the description stays editable.
+- **Releases:** create releases (name required; description and dates optional) with the status Planned, Active or Closed. Moving a release from Planned to Active sets the start date to today if none is set. Click a release for its details and the full activity log. The description can only be edited while the release is Planned. Closed releases also lock their packages and dates.
 - **Dashboard:** overview of packages, releases and environments, including a notice for packages from non-Development connections.
 
 ## Building the frontend

@@ -257,9 +257,12 @@ def api_release_log(release_id: int) -> list[dict]:
 
 @app.patch("/api/releases/{release_id}/description")
 def api_set_release_description(release_id: int, req: ReleaseDescriptionUpdate, request: Request) -> dict:
-    """The description stays editable in every status, including closed."""
+    """The description can only be edited while the release is planned."""
     _require_local(request)
-    release = db.set_release_description(release_id, req.description.strip())
+    try:
+        release = db.set_release_description(release_id, req.description.strip())
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     if release is None:
         raise HTTPException(status_code=404, detail="Release not found")
     return release

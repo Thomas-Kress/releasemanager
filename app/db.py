@@ -339,9 +339,11 @@ def set_connection_description(connection_id: int, description: str) -> dict | N
 def set_release_description(release_id: int, description: str) -> dict | None:
     with connect() as conn:
         _ensure_releases(conn)
-        old = conn.execute("SELECT description FROM releases WHERE id = ?", (release_id,)).fetchone()
+        old = conn.execute("SELECT description, status FROM releases WHERE id = ?", (release_id,)).fetchone()
         if old is None:
             return None
+        if old["status"] != 1:
+            raise ValueError("The description can only be edited while the release is planned")
         conn.execute("UPDATE releases SET description = ? WHERE id = ?", (description, release_id))
         if old["description"] != description:
             _log(conn, release_id, "description", f"Description changed to: {description[:200] or '(empty)'}")

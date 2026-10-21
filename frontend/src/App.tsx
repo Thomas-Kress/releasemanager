@@ -70,6 +70,7 @@ import CheckIcon from '@mui/icons-material/Check'
 import CloseIcon from '@mui/icons-material/Close'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
+import WarningAmberIcon from '@mui/icons-material/WarningAmber'
 import AddIcon from '@mui/icons-material/Add'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import CancelIcon from '@mui/icons-material/Cancel'
@@ -175,6 +176,15 @@ const theme = createTheme({
 function formatDateTime(iso: string | null): string {
   if (!iso) return '—'
   return new Date(iso).toLocaleString()
+}
+
+// Monitoring: an active release without an end date is highlighted in light magenta.
+const MONITOR_COLOR = '#fbd0f3'
+const MONITOR_BORDER = '#d946c0'
+const MONITOR_HINT = 'Active release without an end date'
+
+function isMonitored(r: ReleaseRecord): boolean {
+  return r.status === 2 && !r.endDate
 }
 
 // Share of the release period that has elapsed (0-100), or null without both dates.
@@ -452,11 +462,15 @@ function App({ clerkEnabled = false }: { clerkEnabled?: boolean }) {
   const handleReleaseDescription = async (id: number, description: string) => {
     setReleases((prev) => prev.map((r) => (r.id === id ? { ...r, description: description.trim() } : r)))
     try {
-      await fetch(`/api/releases/${id}/description`, {
+      const res = await fetch(`/api/releases/${id}/description`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ description }),
       })
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        setMoveError(typeof body?.detail === 'string' ? body.detail : `HTTP ${res.status}`)
+      }
     } finally {
       await fetchReleases()
     }
@@ -957,7 +971,11 @@ function App({ clerkEnabled = false }: { clerkEnabled?: boolean }) {
                         .map((r) => {
                           const progress = releaseProgress(r)
                           return (
-                            <Box key={r.id}>
+                            <Box
+                              key={r.id}
+                              title={isMonitored(r) ? MONITOR_HINT : undefined}
+                              sx={isMonitored(r) ? { bgcolor: MONITOR_COLOR, borderRadius: 1, p: 1, m: -1 } : undefined}
+                            >
                               <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                                 <Typography variant="subtitle2" noWrap sx={{ flexGrow: 1 }}>
                                   {r.name}
@@ -1256,8 +1274,11 @@ function App({ clerkEnabled = false }: { clerkEnabled?: boolean }) {
                       sx={{
                         cursor: 'pointer',
                         borderTop: 4,
-                        borderTopColor: r.status === 2 ? 'success.main' : r.status === 1 ? 'info.main' : 'grey.400',
+                        borderTopColor: isMonitored(r)
+                          ? MONITOR_BORDER
+                          : r.status === 2 ? 'success.main' : r.status === 1 ? 'info.main' : 'grey.400',
                         opacity: open ? 1 : 0.85,
+                        ...(isMonitored(r) && { bgcolor: MONITOR_COLOR }),
                       }}
                     >
                       <CardContent>
@@ -1265,6 +1286,11 @@ function App({ clerkEnabled = false }: { clerkEnabled?: boolean }) {
                           <Typography variant="h6" component="h3" noWrap sx={{ flexGrow: 1 }}>
                             {r.name}
                           </Typography>
+                          {isMonitored(r) && (
+                            <Tooltip title={`${MONITOR_HINT}: set an end date`}>
+                              <Chip size="small" icon={<WarningAmberIcon />} label="No end date" />
+                            </Tooltip>
+                          )}
                           {!open && (
                             <Tooltip title="Closed: packages can no longer be added or removed">
                               <LockIcon fontSize="small" color="action" />
@@ -1284,8 +1310,8 @@ function App({ clerkEnabled = false }: { clerkEnabled?: boolean }) {
                             ))}
                           </Select>
                         </Stack>
-                        {/* Editable in every status, including closed. */}
-                        {editingDescription?.id === r.id ? (
+                        {/* Only editable while the release is planned. */}
+                        {editingDescription?.id === r.id && r.status === 1 ? (
                           <Stack direction="row" spacing={0.5} sx={{ mb: 2, alignItems: 'flex-start' }}>
                             <TextField
                               autoFocus
@@ -1326,15 +1352,18 @@ function App({ clerkEnabled = false }: { clerkEnabled?: boolean }) {
                             <Typography variant="body2" color="text.secondary" sx={{ flexGrow: 1, minHeight: 20, whiteSpace: 'pre-wrap' }}>
                               {r.description || 'No description'}
                             </Typography>
-                            <Tooltip title="Edit description">
-                              <IconButton
-                                size="small"
-                                aria-label={`edit description of ${r.name}`}
-                                onClick={() => setEditingDescription({ id: r.id, text: r.description })}
-                                sx={{ mt: -0.5 }}
-                              >
-                                <EditIcon fontSize="small" />
-                              </IconButton>
+                            <Tooltip title={r.status === 1 ? 'Edit description' : 'The description can only be edited while the release is planned'}>
+                              <span>
+                                <IconButton
+                                  size="small"
+                                  disabled={r.status !== 1}
+                                  aria-label={`edit description of ${r.name}`}
+                                  onClick={() => setEditingDescription({ id: r.id, text: r.description })}
+                                  sx={{ mt: -0.5 }}
+                                >
+                                  <EditIcon fontSize="small" />
+                                </IconButton>
+                              </span>
                             </Tooltip>
                           </Stack>
                         )}
