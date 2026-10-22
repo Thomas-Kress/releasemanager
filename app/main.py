@@ -21,6 +21,7 @@ from .b4a_auth import auth_manager
 from .b4a_client import B4AError, run_module
 from .config import get_settings
 from . import db
+from .cucumber import load_steps
 
 
 @asynccontextmanager
@@ -195,6 +196,18 @@ def api_set_release_status(release_id: int, req: ReleaseStatusUpdate, request: R
     return release
 
 
+@app.delete("/api/releases/{release_id}", status_code=204)
+def api_delete_release(release_id: int, request: Request) -> None:
+    """Deletes a release. Only closed releases can be deleted; their packages become unassigned."""
+    _require_local(request)
+    try:
+        db.delete_release(release_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
 @app.patch("/api/releases/{release_id}/dates")
 def api_set_release_dates(release_id: int, req: ReleaseDatesUpdate, request: Request) -> dict:
     _require_local(request)
@@ -266,3 +279,42 @@ def api_set_release_description(release_id: int, req: ReleaseDescriptionUpdate, 
     if release is None:
         raise HTTPException(status_code=404, detail="Release not found")
     return release
+
+
+class TestCaseCreate(BaseModel):
+    __test__ = False  # not a pytest class
+
+    package_name: str = Field(alias="packageName", min_length=1, max_length=200)
+    version: str = Field(min_length=1, max_length=100)
+    name: str = Field(min_length=1, max_length=200)
+    description: str = Field(default="", max_length=2000)
+    scenario: str = Field(default="", max_length=20000)
+
+
+@app.get("/api/cucumber/steps")
+def api_cucumber_steps() -> list[dict]:
+    """Step templates read from input/cucumber.conf (read on every call, so edits apply at once)."""
+    return load_steps()
+
+
+@app.get("/api/test-cases")
+def api_test_cases() -> list[dict]:
+    return db.list_test_cases()
+
+
+@app.post("/api/test-cases", status_code=201)
+def api_create_test_case(req: TestCaseCreate, request: Request) -> dict:
+    _require_local(request)
+    try:
+        return db.create_test_case(
+            req.package_name, req.version, req.name.strip(), req.description.strip(), req.scenario.strip()
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.delete("/api/test-cases/{test_case_id}", status_code=204)
+def api_delete_test_case(test_case_id: int, request: Request) -> None:
+    _require_local(request)
+    if not db.delete_test_case(test_case_id):
+        raise HTTPException(status_code=404, detail="Test case not found")

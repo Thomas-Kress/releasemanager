@@ -1,4 +1,5 @@
 import {
+  Fragment,
   useCallback,
   useEffect,
   useState,
@@ -9,6 +10,7 @@ import {
 import {
   Alert,
   AlertTitle,
+  Autocomplete,
   AppBar,
   Avatar,
   Badge,
@@ -16,6 +18,7 @@ import {
   Button,
   Card,
   CardContent,
+  Checkbox,
   Chip,
   CircularProgress,
   Container,
@@ -27,6 +30,7 @@ import {
   DialogTitle,
   Divider,
   Drawer,
+  FormControlLabel,
   InputAdornment,
   LinearProgress,
   Paper,
@@ -130,6 +134,81 @@ const RELEASE_STATUSES: { value: number; label: string; color: 'info' | 'success
 
 type EnvironmentId = 'development' | 'test' | 'production'
 
+interface TestCaseRecord {
+  id: number
+  packageName: string
+  version: string
+  name: string
+  description: string
+  scenario: string
+}
+
+// Step templates read from input/cucumber.conf (see app/cucumber.py).
+type StepNode =
+  | { type: 'text'; value: string }
+  | { type: 'param'; name: string }
+  | { type: 'optional'; segments: StepNode[] }
+  | { type: 'choice'; options: { label: string; segments: StepNode[] }[] }
+
+interface CucumberStep {
+  id: string
+  keyword: 'Given' | 'When' | 'Then'
+  label: string
+  segments: StepNode[]
+}
+
+type StepValues = Record<string, string | boolean | number>
+
+interface ScenarioStep {
+  stepId: string | null
+  values: StepValues
+}
+
+// Values are keyed by the position of the node in the template ("r.2", "r.3.1.0", ...).
+function stepText(nodes: StepNode[], path: string, values: StepValues): string {
+  return nodes
+    .map((n, i) => {
+      const p = `${path}.${i}`
+      if (n.type === 'text') return n.value
+      if (n.type === 'param') return String(values[p] ?? '').trim() || `<${n.name}>`
+      if (n.type === 'optional') return values[p] === true ? stepText(n.segments, p, values) : ''
+      const idx = Number(values[p] ?? 0)
+      return stepText((n.options[idx] ?? n.options[0]).segments, `${p}.${idx}`, values)
+    })
+    .join('')
+}
+
+function stepComplete(nodes: StepNode[], path: string, values: StepValues): boolean {
+  return nodes.every((n, i) => {
+    const p = `${path}.${i}`
+    if (n.type === 'param') return String(values[p] ?? '').trim() !== ''
+    if (n.type === 'optional') return values[p] !== true || stepComplete(n.segments, p, values)
+    if (n.type === 'choice') {
+      const idx = Number(values[p] ?? 0)
+      return stepComplete((n.options[idx] ?? n.options[0]).segments, `${p}.${idx}`, values)
+    }
+    return true
+  })
+}
+
+function buildScenario(
+  packageName: string,
+  version: string,
+  name: string,
+  steps: ScenarioStep[],
+  definitions: CucumberStep[],
+): string {
+  if (steps.length === 0) return ''
+  let previous = ''
+  const lines = steps.map((st) => {
+    const def = definitions.find((d) => d.id === st.stepId)!
+    const keyword = def.keyword === previous ? 'And' : def.keyword
+    previous = def.keyword
+    return `    ${keyword} ${stepText(def.segments, 'r', st.values).replace(/\s+/g, ' ').trim()}`
+  })
+  return [`Feature: ${packageName} ${version}`, '', `  Scenario: ${name.trim()}`, ...lines].join('\n')
+}
+
 interface ConnectionRecord {
   id: number
   environment: EnvironmentId
@@ -154,8 +233,9 @@ const POLL_INTERVAL_MS = 5000
 const SIDEBAR_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
   { id: 'packages', label: 'Packages', icon: <Inventory2Icon /> },
-  { id: 'releases', label: 'Releases', icon: <RocketLaunchIcon /> },
+  { id: 'releases', label: 'Releases', icon: <RocketLaunchIcon />, disabled: true },
   { id: 'environments', label: 'Environments', icon: <DnsIcon /> },
+  { id: 'testpage', label: 'Test', icon: <ScienceIcon /> },
 ] as const
 
 type View = (typeof SIDEBAR_ITEMS)[number]['id']
@@ -254,6 +334,7 @@ function App({ clerkEnabled = false }: { clerkEnabled?: boolean }) {
   const [releaseForm, setReleaseForm] = useState({ name: '', description: '', startDate: '', endDate: '' })
   const [moveError, setMoveError] = useState<string | null>(null)
   const [packageToDelete, setPackageToDelete] = useState<PackageRecord | null>(null)
+  const [releaseToDelete, setReleaseToDelete] = useState<{ id: number; name: string } | null>(null)
   const [releaseError, setReleaseError] = useState<string | null>(null)
   // Below the md breakpoint the sidebar shows icons only, so they need tooltips.
   const compactSidebar = useMediaQuery(theme.breakpoints.down('md'))
@@ -261,6 +342,13 @@ function App({ clerkEnabled = false }: { clerkEnabled?: boolean }) {
   const [connectionDialog, setConnectionDialog] = useState<EnvironmentId | null>(null)
   const [connectionForm, setConnectionForm] = useState({ name: '', description: '' })
   const [connectionError, setConnectionError] = useState<string | null>(null)
+  const [testCases, setTestCases] = useState<TestCaseRecord[]>([])
+  const [testCaseDialog, setTestCaseDialog] = useState<{ packageName: string; version: string } | null>(null)
+  const [testCaseForm, setTestCaseForm] = useState({ name: '', description: '' })
+  const [testCaseError, setTestCaseError] = useState<string | null>(null)
+  const [cucumberSteps, setCucumberSteps] = useState<CucumberStep[]>([])
+  const [scenarioSteps, setScenarioSteps] = useState<ScenarioStep[]>([])
+  const [viewTestCase, setViewTestCase] = useState<TestCaseRecord | null>(null)
   const [editingDescription, setEditingDescription] = useState<{ id: number; text: string } | null>(null)
   const [editingConnection, setEditingConnection] = useState<{ id: number; text: string } | null>(null)
   const [detailReleaseId, setDetailReleaseId] = useState<number | null>(null)
@@ -317,6 +405,131 @@ function App({ clerkEnabled = false }: { clerkEnabled?: boolean }) {
       // keep the last known list
     }
   }, [])
+
+  const fetchTestCases = useCallback(async () => {
+    try {
+      const res = await fetch('/api/test-cases', { cache: 'no-store' })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      setTestCases(await res.json())
+    } catch {
+      // keep the last known list
+    }
+  }, [])
+
+  const fetchCucumberSteps = useCallback(async () => {
+    try {
+      const res = await fetch('/api/cucumber/steps', { cache: 'no-store' })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      setCucumberSteps(await res.json())
+    } catch {
+      setCucumberSteps([])
+    }
+  }, [])
+
+  const updateScenarioStep = (index: number, step: ScenarioStep) =>
+    setScenarioSteps((prev) => prev.map((st, k) => (k === index ? step : st)))
+
+  // Renders the input fields of a step template; the generated text is shown as a preview below the steps.
+  const renderStepNodes = (nodes: StepNode[], path: string, step: ScenarioStep, index: number, showText = true): ReactNode =>
+    nodes.map((n, i) => {
+      const p = `${path}.${i}`
+      const setValue = (v: string | boolean | number) =>
+        updateScenarioStep(index, { ...step, values: { ...step.values, [p]: v } })
+      if (n.type === 'text') {
+        return showText && n.value.trim() ? (
+          <Typography key={p} variant="body2" color="text.secondary">
+            {n.value.trim()}
+          </Typography>
+        ) : null
+      }
+      if (n.type === 'param') {
+        return (
+          <TextField
+            key={p}
+            required
+            size="small"
+            label={n.name}
+            value={String(step.values[p] ?? '')}
+            onChange={(e) => setValue(e.target.value)}
+          />
+        )
+      }
+      if (n.type === 'optional') {
+        const on = step.values[p] === true
+        return (
+          <Fragment key={p}>
+            <FormControlLabel
+              control={<Checkbox size="small" checked={on} onChange={(e) => setValue(e.target.checked)} />}
+              label={stepText(n.segments, p, {}).trim()}
+            />
+            {on && renderStepNodes(n.segments, p, step, index, false)}
+          </Fragment>
+        )
+      }
+      const idx = Number(step.values[p] ?? 0)
+      const option = n.options[idx] ?? n.options[0]
+      return (
+        <Fragment key={p}>
+          <Select size="small" value={idx} onChange={(e) => setValue(Number(e.target.value))}>
+            {n.options.map((o, k) => (
+              <MenuItem key={o.label} value={k}>
+                {o.label}
+              </MenuItem>
+            ))}
+          </Select>
+          {renderStepNodes(option.segments, `${p}.${idx}`, step, index, false)}
+        </Fragment>
+      )
+    })
+
+  const scenarioReady = scenarioSteps.every((st) => {
+    const def = cucumberSteps.find((d) => d.id === st.stepId)
+    return def !== undefined && stepComplete(def.segments, 'r', st.values)
+  })
+
+  const handleCreateTestCase = async (event: FormEvent) => {
+    event.preventDefault()
+    if (!testCaseDialog) return
+    setTestCaseError(null)
+    try {
+      const res = await fetch('/api/test-cases', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...testCaseDialog,
+          ...testCaseForm,
+          scenario: buildScenario(
+            testCaseDialog.packageName,
+            testCaseDialog.version,
+            testCaseForm.name,
+            scenarioSteps,
+            cucumberSteps,
+          ),
+        }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        const detail = body?.detail
+        throw new Error(
+          typeof detail === 'string' ? detail : Array.isArray(detail) ? detail[0]?.msg : `HTTP ${res.status}`,
+        )
+      }
+      setTestCaseDialog(null)
+      setTestCaseForm({ name: '', description: '' })
+      setScenarioSteps([])
+      await fetchTestCases()
+    } catch (err) {
+      setTestCaseError(err instanceof Error ? err.message : 'Failed to create test case')
+    }
+  }
+
+  const handleDeleteTestCase = async (id: number) => {
+    try {
+      await fetch(`/api/test-cases/${id}`, { method: 'DELETE' })
+    } finally {
+      await fetchTestCases()
+    }
+  }
 
   const handleCreateConnection = async (event: FormEvent) => {
     event.preventDefault()
@@ -384,6 +597,22 @@ function App({ clerkEnabled = false }: { clerkEnabled?: boolean }) {
       setMoveError(err instanceof Error ? err.message : 'Failed to delete package')
     } finally {
       await fetchPackages()
+    }
+  }
+
+  const deleteRelease = async (rel: { id: number; name: string }) => {
+    setMoveError(null)
+    setReleaseToDelete(null)
+    try {
+      const res = await fetch(`/api/releases/${rel.id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        throw new Error(typeof body?.detail === 'string' ? body.detail : `HTTP ${res.status}`)
+      }
+    } catch (err) {
+      setMoveError(err instanceof Error ? err.message : 'Failed to delete release')
+    } finally {
+      await Promise.all([fetchReleases(), fetchPackages()])
     }
   }
 
@@ -495,14 +724,26 @@ function App({ clerkEnabled = false }: { clerkEnabled?: boolean }) {
     fetchPackages()
     fetchReleases()
     fetchConnections()
+    fetchTestCases()
     const id = setInterval(() => {
       fetchStatus()
       fetchPackages()
       fetchReleases()
       fetchConnections()
+      fetchTestCases()
     }, POLL_INTERVAL_MS)
     return () => clearInterval(id)
-  }, [fetchStatus, fetchPackages, fetchReleases, fetchConnections])
+  }, [fetchStatus, fetchPackages, fetchReleases, fetchConnections, fetchTestCases])
+
+  // One entry per package name and version, whatever the source or the number of deliveries.
+  const testEntries = Object.values(
+    packages.reduce<Record<string, { packageName: string; version: string; sources: Set<string> }>>((acc, p) => {
+      const key = JSON.stringify([p.packageName, p.version])
+      const entry = (acc[key] ??= { packageName: p.packageName, version: p.version, sources: new Set() })
+      entry.sources.add(p.source)
+      return acc
+    }, {}),
+  ).sort((a, b) => a.packageName.localeCompare(b.packageName) || a.version.localeCompare(b.version, undefined, { numeric: true }))
 
   const unassignedPackages = packages.filter((p) => p.releaseId === null)
   const search = packageSearch.trim().toLowerCase()
@@ -753,6 +994,7 @@ function App({ clerkEnabled = false }: { clerkEnabled?: boolean }) {
           {SIDEBAR_ITEMS.map((item) => (
             <Tooltip key={item.id} title={item.label} placement="right" disableHoverListener={!compactSidebar}>
               <ListItemButton
+                disabled={'disabled' in item && item.disabled}
                 selected={view === item.id}
                 onClick={() => setView(item.id)}
                 sx={{ px: { xs: 2.5, md: 3 } }}
@@ -771,6 +1013,107 @@ function App({ clerkEnabled = false }: { clerkEnabled?: boolean }) {
       <Toolbar />
       <Box sx={{ minHeight: 'calc(100vh - 64px)', bgcolor: 'background.default', py: 4 }}>
         <Container maxWidth="xl">
+          {view === 'testpage' && (
+            <>
+              <Typography variant="h4" component="h1" sx={{ fontWeight: 600 }}>
+                Test
+              </Typography>
+              <Typography color="text.secondary" sx={{ mb: 3 }}>
+                Test coverage per package name and version. Entries without a test case are shown in magenta.
+              </Typography>
+
+              <Card>
+                <CardContent>
+                  <Stack direction="row" spacing={1} sx={{ mb: 2, alignItems: 'center' }}>
+                    <ScienceIcon color="primary" />
+                    <Typography variant="h6" component="h2" sx={{ flexGrow: 1 }}>
+                      Package test cases
+                    </Typography>
+                    <Chip
+                      size="small"
+                      label={`${testEntries.filter((e) => !testCases.some((t) => t.packageName === e.packageName && t.version === e.version)).length} without test case`}
+                    />
+                  </Stack>
+                  {testEntries.length === 0 ? (
+                    <Alert severity="info" variant="outlined">
+                      No packages received yet.
+                    </Alert>
+                  ) : (
+                    <TableContainer>
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow>
+                            <TableCell>Package</TableCell>
+                            <TableCell>Version</TableCell>
+                            <TableCell>Sources</TableCell>
+                            <TableCell>Test cases</TableCell>
+                            <TableCell align="right" />
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {testEntries.map((e) => {
+                            const cases = testCases.filter((t) => t.packageName === e.packageName && t.version === e.version)
+                            return (
+                              <TableRow
+                                key={`${e.packageName}\u0000${e.version}`}
+                                hover={cases.length > 0}
+                                title={cases.length === 0 ? 'No test case defined for this package version' : undefined}
+                                sx={cases.length === 0 ? { bgcolor: MONITOR_COLOR } : undefined}
+                              >
+                                <TableCell sx={{ fontWeight: 500 }}>{e.packageName}</TableCell>
+                                <TableCell>
+                                  <Chip size="small" variant="outlined" label={e.version} />
+                                </TableCell>
+                                <TableCell>{[...e.sources].join(', ')}</TableCell>
+                                <TableCell>
+                                  {cases.length === 0 ? (
+                                    <Chip size="small" icon={<WarningAmberIcon />} label="No test case" />
+                                  ) : (
+                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                                      {cases.map((t) => (
+                                        <Chip
+                                          key={t.id}
+                                          size="small"
+                                          color="success"
+                                          variant="outlined"
+                                          label={t.name}
+                                          title={t.description || undefined}
+                                          onClick={t.scenario ? () => setViewTestCase(t) : undefined}
+                                          onDelete={() => void handleDeleteTestCase(t.id)}
+                                        />
+                                      ))}
+                                    </Box>
+                                  )}
+                                </TableCell>
+                                <TableCell align="right">
+                                  <Tooltip title="Add test case">
+                                    <IconButton
+                                      size="small"
+                                      color="primary"
+                                      aria-label={`add test case for ${e.packageName} ${e.version}`}
+                                      onClick={() => {
+                                        setTestCaseError(null)
+                                        setTestCaseForm({ name: '', description: '' })
+                                        setScenarioSteps([])
+                                        void fetchCucumberSteps()
+                                        setTestCaseDialog({ packageName: e.packageName, version: e.version })
+                                      }}
+                                    >
+                                      <AddIcon fontSize="small" />
+                                    </IconButton>
+                                  </Tooltip>
+                                </TableCell>
+                              </TableRow>
+                            )
+                          })}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  )}
+                </CardContent>
+              </Card>
+            </>
+          )}
           {view === 'environments' && (
             <>
               <Typography variant="h4" component="h1" sx={{ fontWeight: 600 }}>
@@ -1296,6 +1639,21 @@ function App({ clerkEnabled = false }: { clerkEnabled?: boolean }) {
                               <LockIcon fontSize="small" color="action" />
                             </Tooltip>
                           )}
+                          {!open && (
+                            <Tooltip title="Delete release">
+                              <IconButton
+                                size="small"
+                                color="error"
+                                aria-label={`delete release ${r.name}`}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setReleaseToDelete({ id: r.id, name: r.name })
+                                }}
+                              >
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          )}
                           <Select
                             size="small"
                             value={r.status}
@@ -1462,6 +1820,22 @@ function App({ clerkEnabled = false }: { clerkEnabled?: boolean }) {
         </DialogActions>
       </Dialog>
 
+      <Dialog open={releaseToDelete !== null} onClose={() => setReleaseToDelete(null)}>
+        <DialogTitle>Delete release?</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Release {releaseToDelete?.name} and its log will be permanently deleted. Its packages stay available
+            as unassigned. This cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setReleaseToDelete(null)}>Cancel</Button>
+          <Button color="error" variant="contained" onClick={() => releaseToDelete && void deleteRelease(releaseToDelete)}>
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       <Snackbar
         open={Boolean(moveError)}
         autoHideDuration={6000}
@@ -1561,6 +1935,119 @@ function App({ clerkEnabled = false }: { clerkEnabled?: boolean }) {
           </Dialog>
         )
       })()}
+
+      <Dialog
+        open={testCaseDialog !== null}
+        onClose={() => setTestCaseDialog(null)}
+        fullWidth
+        maxWidth="md"
+        component="form"
+        onSubmit={handleCreateTestCase}
+      >
+        <DialogTitle>
+          New test case for {testCaseDialog?.packageName} {testCaseDialog?.version}
+        </DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            {testCaseError && <Alert severity="error">{testCaseError}</Alert>}
+            <TextField
+              autoFocus
+              required
+              label="Name"
+              value={testCaseForm.name}
+              onChange={(e) => setTestCaseForm({ ...testCaseForm, name: e.target.value })}
+            />
+            <TextField
+              label="Description"
+              multiline
+              minRows={2}
+              value={testCaseForm.description}
+              onChange={(e) => setTestCaseForm({ ...testCaseForm, description: e.target.value })}
+            />
+
+            <Divider />
+            <Typography variant="subtitle2">Cucumber steps</Typography>
+            {cucumberSteps.length === 0 && (
+              <Alert severity="info" variant="outlined">
+                No step definitions found in input/cucumber.conf. The test case is saved without a scenario.
+              </Alert>
+            )}
+            {scenarioSteps.map((st, index) => {
+              const def = cucumberSteps.find((d) => d.id === st.stepId)
+              return (
+                <Paper key={index} variant="outlined" sx={{ p: 1.5 }}>
+                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                    <Autocomplete
+                      fullWidth
+                      size="small"
+                      options={cucumberSteps}
+                      groupBy={(o) => o.keyword}
+                      getOptionLabel={(o) => o.label}
+                      value={def ?? null}
+                      onChange={(_, v) => updateScenarioStep(index, { stepId: v?.id ?? null, values: {} })}
+                      renderInput={(params) => <TextField {...params} label={`Step ${index + 1}`} />}
+                    />
+                    <IconButton
+                      aria-label={`remove step ${index + 1}`}
+                      onClick={() => setScenarioSteps((prev) => prev.filter((_, k) => k !== index))}
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Stack>
+                  {def && (
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center', mt: 1.5 }}>
+                      {renderStepNodes(def.segments, 'r', st, index)}
+                    </Box>
+                  )}
+                </Paper>
+              )
+            })}
+            <Box>
+              <Button
+                startIcon={<AddIcon />}
+                disabled={cucumberSteps.length === 0}
+                onClick={() => setScenarioSteps((prev) => [...prev, { stepId: null, values: {} }])}
+              >
+                Add step
+              </Button>
+            </Box>
+            {scenarioSteps.length > 0 && scenarioReady && testCaseDialog && (
+              <Typography
+                component="pre"
+                variant="body2"
+                sx={{ m: 0, p: 1.5, borderRadius: 1, bgcolor: 'action.hover', fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}
+              >
+                {buildScenario(testCaseDialog.packageName, testCaseDialog.version, testCaseForm.name, scenarioSteps, cucumberSteps)}
+              </Typography>
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setTestCaseDialog(null)}>Cancel</Button>
+          <Button type="submit" variant="contained" disabled={!testCaseForm.name.trim() || !scenarioReady}>
+            Create
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={viewTestCase !== null} onClose={() => setViewTestCase(null)} fullWidth maxWidth="sm">
+        <DialogTitle>
+          {viewTestCase?.name} ({viewTestCase?.packageName} {viewTestCase?.version})
+        </DialogTitle>
+        <DialogContent dividers>
+          {viewTestCase?.description && <Typography sx={{ mb: 2, whiteSpace: 'pre-wrap' }}>{viewTestCase.description}</Typography>}
+          <Typography
+            component="pre"
+            variant="body2"
+            sx={{ m: 0, p: 1.5, borderRadius: 1, bgcolor: 'action.hover', fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}
+          >
+            {viewTestCase?.scenario}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setViewTestCase(null)}>Close</Button>
+        </DialogActions>
+      </Dialog>
 
       <Dialog
         open={connectionDialog !== null}

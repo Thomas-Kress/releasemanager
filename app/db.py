@@ -225,6 +225,21 @@ def set_release_dates(release_id: int, start_date: str | None, end_date: str | N
     return _release_row(row) if row else None
 
 
+def delete_release(release_id: int) -> None:
+    """Deletes a closed release with its log; its packages become unassigned. Raises
+    LookupError if it does not exist and ValueError if it is not closed."""
+    with connect() as conn:
+        _ensure_releases(conn)
+        rel = conn.execute("SELECT status FROM releases WHERE id = ?", (release_id,)).fetchone()
+        if rel is None:
+            raise LookupError("Release not found")
+        if rel["status"] != 3:
+            raise ValueError("Only closed releases can be deleted")
+        conn.execute("UPDATE packages SET release_id = NULL WHERE release_id = ?", (release_id,))
+        conn.execute("DELETE FROM release_log WHERE release_id = ?", (release_id,))
+        conn.execute("DELETE FROM releases WHERE id = ?", (release_id,))
+
+
 def delete_package(package_id: int) -> None:
     """Deletes a package. Raises LookupError if it does not exist and ValueError if it
     is assigned to a release (it has to be unassigned first)."""
@@ -365,3 +380,61 @@ def list_release_log(release_id: int) -> list[dict] | None:
         {"id": r["id"], "loggedAt": r["logged_at"], "event": r["event"], "message": r["message"]}
         for r in rows
     ]
+
+
+def _ensure_test_cases(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS test_cases (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            package_name TEXT NOT NULL,
+            version      TEXT NOT NULL,
+            name         TEXT NOT NULL,
+            description  TEXT NOT NULL DEFAULT ''
+        )
+        """
+    )
+    # Gherkin scenario built from the cucumber step definitions (empty if none was defined).
+    if "scenario" not in {r["name"] for r in conn.execute("PRAGMA table_info(test_cases)")}:
+        conn.execute("ALTER TABLE test_cases ADD COLUMN scenario TEXT NOT NULL DEFAULT ''")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_test_cases_package ON test_cases (package_name, version)")
+
+
+def _test_case_row(r: sqlite3.Row) -> dict:
+    return {
+        "id": r["id"],
+        "packageName": r["package_name"],
+        "version": r["version"],
+        "name": r["name"],
+        "description": r["description"],
+        "scenario": r["scenario"],
+    }
+
+
+def list_test_cases() -> list[dict]:
+    with connect() as conn:
+        _ensure_test_cases(conn)
+        rows = conn.execute("SELECT * FROM test_cases ORDER BY id").fetchall()
+    return [_test_case_row(r) for r in rows]
+
+
+def create_test_case(package_name: str, version: str, name: str, description: str, scenario: str = "") -> dict:
+    """Raises LookupError if no package with this name and version has been received."""
+    with connect() as conn:
+        _ensure_test_cases(conn)
+        if conn.execute(
+            "SELECT 1 FROM packages WHERE package_name = ? AND version = ? LIMIT 1", (package_name, version)
+        ).fetchone() is None:
+            raise LookupError("Package not found")
+        cur = conn.execute(
+            "INSERT INTO test_cases (package_name, version, name, description, scenario) VALUES (?, ?, ?, ?, ?)",
+            (package_name, version, name, description, scenario),
+        )
+        row = conn.execute("SELECT * FROM test_cases WHERE id = ?", (cur.lastrowid,)).fetchone()
+    return _test_case_row(row)
+
+
+def delete_test_case(test_case_id: int) -> bool:
+    with connect() as conn:
+        _ensure_test_cases(conn)
+        return conn.execute("DELETE FROM test_cases WHERE id = ?", (test_case_id,)).rowcount > 0

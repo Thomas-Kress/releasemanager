@@ -78,6 +78,7 @@ curl -X POST http://localhost:8080/webhook/packages \
 - **Environments:** define connections (a unique name and an optional description) under Development, Test or Production. A name can only be defined once across all sections.
 - **Packages:** shows every received package, whatever its source. Packages from a defined Development connection can be assigned to a release that is not closed. Packages that are not assigned to a release can be deleted.
 - **Releases:** create releases (name required; description and dates optional) with the status Planned, Active or Closed. Moving a release from Planned to Active sets the start date to today if none is set. Click a release for its details and the full activity log. The description can only be edited while the release is Planned. Closed releases also lock their packages and dates.
+- **Test:** lists every package name and version and its test cases. Entries without a test case are shown in light magenta. A test case has a name, an optional description and optional Cucumber steps. The steps are chosen from the step definitions in `input/cucumber.conf` (optional, read on every request; built-in defaults are used when the file does not exist) and are stored as a Gherkin scenario; click a test case to see it.
 - **Dashboard:** overview of packages, releases and environments, including a notice for packages from non-Development connections.
 
 ## Building the frontend
